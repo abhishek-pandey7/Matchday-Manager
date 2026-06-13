@@ -10,19 +10,26 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Play, RotateCcw, ArrowLeft, Plus, X } from 'lucide-react';
+import { Play, ArrowLeft, Plus, X, Shield, Swords, Zap, Gauge, Users } from 'lucide-react';
 
 const FORMATIONS: FormationType[] = [
   '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1', '4-1-4-1',
 ];
 
-const MENTALITIES: { value: TacticalSettings['mentality']; label: string }[] = [
-  { value: 'defensive', label: '🛡️ Defensive' },
-  { value: 'cautious', label: '🔶 Cautious' },
-  { value: 'balanced', label: '⚖️ Balanced' },
-  { value: 'attacking', label: '⚡ Attacking' },
-  { value: 'very_attacking', label: '🔥 All Out' },
+const MENTALITIES: { value: TacticalSettings['mentality']; label: string; icon: string }[] = [
+  { value: 'defensive', label: 'Defensive', icon: '🛡️' },
+  { value: 'cautious', label: 'Cautious', icon: '🔶' },
+  { value: 'balanced', label: 'Balanced', icon: '⚖️' },
+  { value: 'attacking', label: 'Attacking', icon: '⚡' },
+  { value: 'very_attacking', label: 'All Out', icon: '🔥' },
 ];
+
+function positionColor(pos: string) {
+  if (['GK'].includes(pos)) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300';
+  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-300';
+  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-300';
+  return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-300';
+}
 
 function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
   const store = useCoachStore();
@@ -58,12 +65,10 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
     setShowSubDialog(false);
   };
 
-  const positionColor = (pos: string) => {
-    if (['GK'].includes(pos)) return 'bg-yellow-500/20 text-yellow-700 border-yellow-300';
-    if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500/20 text-blue-700 border-blue-300';
-    if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500/20 text-green-700 border-green-300';
-    return 'bg-red-500/20 text-red-700 border-red-300';
-  };
+  // Calculate average rating of starting XI
+  const avgRating = startingPlayers.length > 0
+    ? Math.round(startingPlayers.reduce((sum, p) => sum + (p?.rating || 0), 0) / startingPlayers.length)
+    : 0;
 
   return (
     <Card className="border-2">
@@ -105,10 +110,17 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
 
         {/* Starting XI */}
         <div>
-          <label className="text-sm font-medium mb-1.5 block">Starting XI</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium flex items-center gap-1">
+              <Users className="w-3 h-3" /> Starting XI
+            </label>
+            <Badge variant="secondary" className="text-xs">
+              Avg {avgRating}
+            </Badge>
+          </div>
           <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
             {startingPlayers.map((player, i) => (
-              <div key={player!.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 text-sm">
+              <div key={player!.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 text-sm hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground w-4 text-center text-xs">{i + 1}</span>
                   <Badge variant="outline" className={`text-[10px] px-1 py-0 ${positionColor(player!.position)}`}>
@@ -143,21 +155,21 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
                       : 'bg-muted/50 border-border hover:bg-muted'
                   }`}
                 >
-                  {m.label}
+                  {m.icon} {m.label}
                 </button>
               ))}
             </div>
           </div>
 
           {[
-            { key: 'pressingIntensity', label: 'Pressing', low: 'Low', high: 'High' },
-            { key: 'tempo', label: 'Tempo', low: 'Slow', high: 'Fast' },
-            { key: 'width', label: 'Width', low: 'Narrow', high: 'Wide' },
-            { key: 'defensiveLine', label: 'Def. Line', low: 'Deep', high: 'High' },
-          ].map(({ key, label, low, high }) => (
+            { key: 'pressingIntensity', label: 'Pressing', low: 'Low', high: 'High', icon: <Zap className="w-3 h-3" /> },
+            { key: 'tempo', label: 'Tempo', low: 'Slow', high: 'Fast', icon: <Gauge className="w-3 h-3" /> },
+            { key: 'width', label: 'Width', low: 'Narrow', high: 'Wide', icon: <Swords className="w-3 h-3" /> },
+            { key: 'defensiveLine', label: 'Def. Line', low: 'Deep', high: 'High', icon: <Shield className="w-3 h-3" /> },
+          ].map(({ key, label, low, high, icon }) => (
             <div key={key}>
               <div className="flex justify-between text-xs mb-1">
-                <span>{label}</span>
+                <span className="flex items-center gap-1">{icon} {label}</span>
                 <span className="text-muted-foreground">{low} → {high}</span>
               </div>
               <Slider
@@ -177,7 +189,9 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
         {/* Substitutions */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium">Planned Substitutions</label>
+            <label className="text-sm font-medium flex items-center gap-1">
+              🔄 Planned Substitutions
+            </label>
             <Button
               variant="outline"
               size="sm"
@@ -189,7 +203,7 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
           </div>
 
           {lineup.substitutions.length === 0 && (
-            <p className="text-xs text-muted-foreground">No substitutions planned</p>
+            <p className="text-xs text-muted-foreground">No substitutions planned. Add one or make live subs during the match.</p>
           )}
 
           <div className="space-y-1">
@@ -197,9 +211,14 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
               const outPlayer = team.players.find(p => p.id === sub.playerOutId);
               const inPlayer = team.players.find(p => p.id === sub.playerInId);
               return (
-                <div key={sub.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 text-xs">
-                  <span>
-                    {sub.minute}&apos; {outPlayer?.name} → {inPlayer?.name}
+                <div key={sub.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 text-xs hover:bg-muted/50 transition-colors">
+                  <span className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-[9px] font-mono px-1 py-0 w-8 justify-center">
+                      {sub.minute}&apos;
+                    </Badge>
+                    <span className="text-red-500">{outPlayer?.name}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-green-600">{inPlayer?.name}</span>
                   </span>
                   <Button
                     variant="ghost"
@@ -223,7 +242,7 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
                 <SelectContent>
                   {startingPlayers.map(p => (
                     <SelectItem key={p!.id} value={p!.id}>
-                      {p!.name} ({p!.position})
+                      {p!.name} ({p!.position}) - {p!.rating}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -236,7 +255,7 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
                 <SelectContent>
                   {benchPlayers.map(p => (
                     <SelectItem key={p!.id} value={p!.id}>
-                      {p!.name} ({p!.position})
+                      {p!.name} ({p!.position}) - {p!.rating}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -253,6 +272,22 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
                   className="py-1"
                 />
               </div>
+
+              {/* Rating comparison */}
+              {subOut && subIn && (() => {
+                const outP = team.players.find(p => p.id === subOut);
+                const inP = team.players.find(p => p.id === subIn);
+                if (!outP || !inP) return null;
+                const diff = inP.rating - outP.rating;
+                return (
+                  <div className="text-center text-xs">
+                    <span className="text-muted-foreground">Rating change: </span>
+                    <span className={diff > 0 ? 'text-green-600 font-bold' : diff < 0 ? 'text-red-600 font-bold' : 'font-bold'}>
+                      {diff > 0 ? '+' : ''}{diff}
+                    </span>
+                  </div>
+                );
+              })()}
 
               <div className="flex gap-2">
                 <Button size="sm" className="h-7 text-xs flex-1" onClick={handleAddSub}>

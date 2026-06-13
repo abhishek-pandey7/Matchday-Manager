@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCoachStore } from '@/store/matchStore';
 import { TEAMS } from '@/lib/simulation/data';
-import { MatchEventType } from '@/lib/simulation/types';
+import { MatchEventType, MatchEvent } from '@/lib/simulation/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,10 @@ import {
   Gauge,
   ArrowLeftRight,
   X,
+  Clock,
+  Zap,
+  Shield,
+  Swords,
 } from 'lucide-react';
 
 const EVENT_ICONS: Record<MatchEventType, string> = {
@@ -44,9 +48,35 @@ const EVENT_ICONS: Record<MatchEventType, string> = {
   kick_off: '🏟️',
 };
 
+const EVENT_COLORS: Record<MatchEventType, string> = {
+  goal: 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400',
+  shot_on_target: 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-300',
+  shot_off_target: 'bg-gray-50 dark:bg-gray-900/10 border-l-4 border-gray-300',
+  corner: 'bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-300',
+  foul: 'bg-amber-50 dark:bg-amber-900/10 border-l-4 border-amber-300',
+  yellow_card: 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500',
+  red_card: 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500',
+  offside: 'bg-purple-50 dark:bg-purple-900/10 border-l-4 border-purple-300',
+  pass_sequence: 'bg-green-50 dark:bg-green-900/10 border-l-4 border-green-300',
+  substitution: 'bg-sky-50 dark:bg-sky-900/10 border-l-4 border-sky-400',
+  injury: 'bg-rose-50 dark:bg-rose-900/10 border-l-4 border-rose-400',
+  half_time: 'bg-muted border-l-4 border-muted-foreground',
+  full_time: 'bg-muted border-l-4 border-muted-foreground',
+  kick_off: 'bg-muted border-l-4 border-muted-foreground',
+};
+
+function getTeamName(teamId: string, teamAId: string, teamBId: string): string {
+  const teamA = TEAMS.find(t => t.id === teamAId);
+  const teamB = TEAMS.find(t => t.id === teamBId);
+  if (teamId === teamAId) return teamA?.shortName || 'H';
+  if (teamId === teamBId) return teamB?.shortName || 'A';
+  return '';
+}
+
 export default function SimulationPage() {
   const store = useCoachStore();
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [subTeam, setSubTeam] = useState<'A' | 'B'>('A');
   const [subOut, setSubOut] = useState('');
@@ -91,6 +121,13 @@ export default function SimulationPage() {
     }
   }, [store.isAnimating, startPlayback]);
 
+  // Auto-scroll timeline to bottom as events appear
+  useEffect(() => {
+    if (timelineRef.current) {
+      timelineRef.current.scrollTop = timelineRef.current.scrollHeight;
+    }
+  }, [store.filteredEvents.length]);
+
   const togglePlay = () => {
     if (store.isAnimating) {
       store.pauseAnimation();
@@ -108,12 +145,9 @@ export default function SimulationPage() {
 
   const handleLiveSub = () => {
     if (!subOut || !subIn) return;
-    // Pause the match first
     stopAnimation();
     store.pauseAnimation();
-    // Apply the substitution
     store.liveSub(subTeam, subOut, subIn);
-    // Reset sub form
     setSubOut('');
     setSubIn('');
     setShowSubPanel(false);
@@ -136,7 +170,28 @@ export default function SimulationPage() {
 
   // Build accurate summary from frame data
   const goalEvents = store.eventLog.filter(e => e.type === 'goal' && Math.floor(e.minute) <= store.currentFrame);
+  const cardEvents = store.eventLog.filter(e => (e.type === 'yellow_card' || e.type === 'red_card') && Math.floor(e.minute) <= store.currentFrame);
   const subEvents = store.eventLog.filter(e => e.type === 'substitution' && Math.floor(e.minute) <= store.currentFrame);
+
+  // Possession momentum flow (last 10 minutes)
+  const possessionFlow = () => {
+    const startMinute = Math.max(0, store.currentFrame - 10);
+    let aCount = 0, bCount = 0;
+    for (let m = startMinute; m <= store.currentFrame; m++) {
+      const mEvents = store.eventLog.filter(e => Math.floor(e.minute) === m && e.teamId);
+      if (mEvents.length > 0) {
+        const last = mEvents[mEvents.length - 1];
+        if (last.teamId === teamA.id) aCount++;
+        else if (last.teamId === teamB.id) bCount++;
+      }
+    }
+    const total = aCount + bCount || 1;
+    return { a: Math.round((aCount / total) * 100), b: Math.round((bCount / total) * 100) };
+  };
+  const momentum = possessionFlow();
+
+  const isHalfTime = frame.currentPhase === 'half_time';
+  const isFullTime = frame.currentPhase === 'full_time';
 
   return (
     <div className="space-y-4">
@@ -154,14 +209,20 @@ export default function SimulationPage() {
               </div>
               <div className="text-right">
                 <div className="font-bold text-sm md:text-base">{teamA.name}</div>
-                <div className="text-xs text-muted-foreground">{frame.currentPhase === 'first_half' ? '1st Half' : frame.currentPhase === 'half_time' ? 'HT' : frame.currentPhase === 'second_half' ? '2nd Half' : 'FT'}</div>
+                <div className="text-xs text-muted-foreground">
+                  {frame.currentPhase === 'first_half' ? '1st Half' : isHalfTime ? 'Half Time' : frame.currentPhase === 'second_half' ? '2nd Half' : 'Full Time'}
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-3xl md:text-5xl font-black tabular-nums">{frame.score[0]}</span>
+              <span className={`text-3xl md:text-5xl font-black tabular-nums transition-all ${goalEvents.some(g => Math.floor(g.minute) === store.currentFrame) ? 'scale-110 text-yellow-500' : ''}`}>
+                {frame.score[0]}
+              </span>
               <span className="text-xl md:text-2xl text-muted-foreground">-</span>
-              <span className="text-3xl md:text-5xl font-black tabular-nums">{frame.score[1]}</span>
+              <span className={`text-3xl md:text-5xl font-black tabular-nums transition-all ${goalEvents.some(g => Math.floor(g.minute) === store.currentFrame) ? 'scale-110 text-yellow-500' : ''}`}>
+                {frame.score[1]}
+              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -271,7 +332,7 @@ export default function SimulationPage() {
 
       {/* Live Substitution Panel */}
       {showSubPanel && (
-        <Card className="border-2 border-primary/50">
+        <Card className="border-2 border-primary/50 animate-in slide-in-from-bottom-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center justify-between">
               <span className="flex items-center gap-2">
@@ -313,7 +374,7 @@ export default function SimulationPage() {
                 <SelectContent>
                   {pitchPlayers.map(p => (
                     <SelectItem key={p!.id} value={p!.id}>
-                      {p!.name} ({p!.position}) - {p!.rating}
+                      {p!.name} ({p!.position}) - OVR {p!.rating}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -330,12 +391,28 @@ export default function SimulationPage() {
                 <SelectContent>
                   {benchPlayers.map(p => (
                     <SelectItem key={p!.id} value={p!.id}>
-                      {p!.name} ({p!.position}) - {p!.rating}
+                      {p!.name} ({p!.position}) - OVR {p!.rating}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Rating comparison */}
+            {subOut && subIn && (() => {
+              const outP = currentTeam.players.find(p => p.id === subOut);
+              const inP = currentTeam.players.find(p => p.id === subIn);
+              if (!outP || !inP) return null;
+              const diff = inP.rating - outP.rating;
+              return (
+                <div className="text-center text-xs">
+                  <span className="text-muted-foreground">Rating change: </span>
+                  <span className={diff > 0 ? 'text-green-600 font-bold' : diff < 0 ? 'text-red-600 font-bold' : 'font-bold'}>
+                    {diff > 0 ? '+' : ''}{diff}
+                  </span>
+                </div>
+              );
+            })()}
 
             <div className="flex gap-2">
               <Button
@@ -366,32 +443,42 @@ export default function SimulationPage() {
           <Card>
             <CardContent className="p-0">
               <ScrollArea className="h-72">
-                <div className="p-2 space-y-0.5">
+                <div ref={timelineRef} className="p-2 space-y-1">
                   {keyEvents.length === 0 ? (
                     <p className="text-center text-muted-foreground text-sm py-8">
                       Match events will appear here as the match progresses...
                     </p>
                   ) : (
-                    keyEvents.map((event, i) => (
-                      <div
-                        key={`${event.minute}-${event.type}-${i}`}
-                        className={`flex items-start gap-2 p-2 rounded text-sm ${
-                          event.type === 'goal'
-                            ? 'bg-yellow-50 dark:bg-yellow-900/20 font-medium'
-                            : event.type === 'red_card'
-                            ? 'bg-red-50 dark:bg-red-900/20'
-                            : event.type === 'substitution'
-                            ? 'bg-blue-50 dark:bg-blue-900/20'
-                            : 'hover:bg-muted/50'
-                        }`}
-                      >
-                        <Badge variant="outline" className="text-[10px] font-mono shrink-0 w-10 justify-center">
-                          {Math.floor(event.minute)}&apos;
-                        </Badge>
-                        <span className="shrink-0">{EVENT_ICONS[event.type]}</span>
-                        <span className="text-xs leading-relaxed">{event.description}</span>
-                      </div>
-                    ))
+                    keyEvents.map((event, i) => {
+                      const teamBadge = event.teamId
+                        ? getTeamName(event.teamId, store.teamAId, store.teamBId)
+                        : '';
+                      const isTeamA = event.teamId === store.teamAId;
+
+                      return (
+                        <div
+                          key={`${event.minute}-${event.type}-${i}`}
+                          className={`flex items-start gap-2 p-2 rounded text-sm transition-all ${
+                            EVENT_COLORS[event.type] || 'hover:bg-muted/50'
+                          } ${event.type === 'goal' ? 'font-medium' : ''}`}
+                        >
+                          <Badge variant="outline" className="text-[10px] font-mono shrink-0 w-10 justify-center">
+                            {Math.floor(event.minute)}&apos;
+                          </Badge>
+                          <span className="shrink-0 text-base">{EVENT_ICONS[event.type]}</span>
+                          {teamBadge && (
+                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isTeamA
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
+                              {teamBadge}
+                            </span>
+                          )}
+                          <span className="text-xs leading-relaxed">{event.description}</span>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>
@@ -401,35 +488,65 @@ export default function SimulationPage() {
 
         <TabsContent value="stats">
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-4">
+              {/* Momentum indicator */}
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-green-600 font-medium flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> {teamA.shortName} {momentum.a}%
+                  </span>
+                  <span className="text-muted-foreground">Momentum (last 10 min)</span>
+                  <span className="text-red-600 font-medium flex items-center gap-1">
+                    {momentum.b}% {teamB.shortName} <Zap className="w-3 h-3" />
+                  </span>
+                </div>
+                <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+                  <div className="bg-green-500 transition-all duration-500" style={{ width: `${momentum.a}%` }} />
+                  <div className="bg-red-500 transition-all duration-500" style={{ width: `${momentum.b}%` }} />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Full stats */}
               <div className="space-y-3">
                 {[
-                  { label: 'Possession', a: frame.possession[0], b: frame.possession[1], suffix: '%' },
-                  { label: 'Shots', a: frame.shots[0], b: frame.shots[1] },
-                  { label: 'Shots on Target', a: frame.shotsOnTarget[0], b: frame.shotsOnTarget[1] },
-                  { label: 'Corners', a: frame.corners[0], b: frame.corners[1] },
-                  { label: 'Fouls', a: frame.fouls[0], b: frame.fouls[1] },
-                  { label: 'Yellow Cards', a: frame.yellowCards[0], b: frame.yellowCards[1] },
-                  { label: 'Red Cards', a: frame.redCards[0], b: frame.redCards[1] },
-                  { label: 'Passes', a: frame.passes[0], b: frame.passes[1] },
-                  { label: 'Pass Accuracy', a: frame.passAccuracy[0], b: frame.passAccuracy[1], suffix: '%' },
+                  { label: 'Possession', a: frame.possession[0], b: frame.possession[1], suffix: '%', icon: <Clock className="w-3 h-3" /> },
+                  { label: 'Shots', a: frame.shots[0], b: frame.shots[1], icon: <Swords className="w-3 h-3" /> },
+                  { label: 'Shots on Target', a: frame.shotsOnTarget[0], b: frame.shotsOnTarget[1], icon: <Zap className="w-3 h-3" /> },
+                  { label: 'Corners', a: frame.corners[0], b: frame.corners[1], icon: <Shield className="w-3 h-3" /> },
+                  { label: 'Fouls', a: frame.fouls[0], b: frame.fouls[1], icon: <Shield className="w-3 h-3" /> },
+                  { label: 'Yellow Cards', a: frame.yellowCards[0], b: frame.yellowCards[1], icon: <Shield className="w-3 h-3" /> },
+                  { label: 'Red Cards', a: frame.redCards[0], b: frame.redCards[1], icon: <Shield className="w-3 h-3" /> },
+                  { label: 'Passes', a: frame.passes[0], b: frame.passes[1], icon: <Swords className="w-3 h-3" /> },
+                  { label: 'Pass Accuracy', a: frame.passAccuracy[0], b: frame.passAccuracy[1], suffix: '%', icon: <Zap className="w-3 h-3" /> },
                 ].map(stat => {
                   const total = (stat.a || 0) + (stat.b || 0) || 1;
+                  const aRatio = (stat.a || 0) / total;
+                  const bRatio = (stat.b || 0) / total;
+                  const aLeading = (stat.a || 0) > (stat.b || 0);
+                  const bLeading = (stat.b || 0) > (stat.a || 0);
                   return (
                     <div key={stat.label}>
                       <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-bold w-10 text-right">{stat.a}{stat.suffix || ''}</span>
-                        <span className="text-muted-foreground text-xs">{stat.label}</span>
-                        <span className="font-bold w-10 text-left">{stat.b}{stat.suffix || ''}</span>
+                        <span className={`font-bold w-12 text-right ${aLeading ? 'text-green-600' : ''}`}>
+                          {stat.a}{stat.suffix || ''}
+                        </span>
+                        <span className="text-muted-foreground text-xs flex items-center gap-1">
+                          {stat.icon} {stat.label}
+                        </span>
+                        <span className={`font-bold w-12 text-left ${bLeading ? 'text-red-600' : ''}`}>
+                          {stat.b}{stat.suffix || ''}
+                        </span>
                       </div>
-                      <div className="flex h-1.5 rounded-full overflow-hidden bg-muted">
+                      <div className="flex h-2 rounded-full overflow-hidden bg-muted">
                         <div
-                          className="bg-green-500 rounded-l-full transition-all"
-                          style={{ width: `${((stat.a || 0) / total) * 100}%` }}
+                          className="bg-green-500 rounded-l-full transition-all duration-300"
+                          style={{ width: `${aRatio * 100}%` }}
                         />
                         <div
-                          className="bg-red-500 rounded-r-full transition-all"
-                          style={{ width: `${((stat.b || 0) / total) * 100}%` }}
+                          className="bg-red-500 rounded-r-full transition-all duration-300"
+                          style={{ width: `${bRatio * 100}%` }}
                         />
                       </div>
                     </div>
@@ -443,12 +560,15 @@ export default function SimulationPage() {
         <TabsContent value="summary">
           <Card>
             <CardContent className="p-4 space-y-4">
+              {/* Match Result */}
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-bold">Match Summary</h3>
+                <h3 className="text-lg font-bold">
+                  {isFullTime ? 'Full Time Result' : isHalfTime ? 'Half Time' : 'Match In Progress'}
+                </h3>
                 <div className="flex items-center justify-center gap-4">
                   <div className="text-right">
                     <div className="flex items-center gap-2 justify-end">
-                      <span>{teamA.flag}</span>
+                      <span className="text-lg">{teamA.flag}</span>
                       <span className="font-bold">{teamA.name}</span>
                     </div>
                   </div>
@@ -458,73 +578,172 @@ export default function SimulationPage() {
                   <div className="text-left">
                     <div className="flex items-center gap-2">
                       <span className="font-bold">{teamB.name}</span>
-                      <span>{teamB.flag}</span>
+                      <span className="text-lg">{teamB.flag}</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {frame.score[0] > frame.score[1]
-                    ? `${teamA.name} wins!`
-                    : frame.score[0] < frame.score[1]
-                    ? `${teamB.name} wins!`
-                    : 'Draw!'}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Goal Scorers - accurate from animation */}
-              <div>
-                <h4 className="text-sm font-medium mb-2">Goal Scorers</h4>
-                {goalEvents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No goals yet</p>
-                ) : (
-                  goalEvents.map((e, i) => (
-                    <div key={i} className="text-sm flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-xs font-mono w-10 justify-center">{Math.floor(e.minute)}&apos;</Badge>
-                      <span>{e.description}</span>
-                    </div>
-                  ))
+                {(isFullTime || isHalfTime) && (
+                  <div className="text-sm font-medium mt-1">
+                    {frame.score[0] > frame.score[1]
+                      ? `${teamA.name} ${isFullTime ? 'wins!' : 'leads!'}`
+                      : frame.score[0] < frame.score[1]
+                      ? `${teamB.name} ${isFullTime ? 'wins!' : 'leads!'}`
+                      : 'Level!'}
+                  </div>
                 )}
               </div>
 
               <Separator />
 
-              {/* Substitutions made */}
-              {subEvents.length > 0 && (
+              {/* Goal Scorers */}
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                  <span>⚽</span> Goal Scorers
+                </h4>
+                {goalEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No goals yet</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {/* Team A goals */}
+                    <div className="space-y-1">
+                      {goalEvents
+                        .filter(e => e.teamId === teamA.id)
+                        .map((e, i) => (
+                          <div key={`a-${i}`} className="text-sm flex items-center gap-2 p-1.5 rounded bg-green-50 dark:bg-green-900/10">
+                            <Badge variant="outline" className="text-xs font-mono w-8 justify-center shrink-0">
+                              {Math.floor(e.minute)}&apos;
+                            </Badge>
+                            <span>{e.playerId
+                              ? teamA.players.find(p => p.id === e.playerId)?.name || 'Unknown'
+                              : 'Unknown'
+                            }</span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                    {/* Team B goals */}
+                    <div className="space-y-1">
+                      {goalEvents
+                        .filter(e => e.teamId === teamB.id)
+                        .map((e, i) => (
+                          <div key={`b-${i}`} className="text-sm flex items-center gap-2 p-1.5 rounded bg-red-50 dark:bg-red-900/10">
+                            <Badge variant="outline" className="text-xs font-mono w-8 justify-center shrink-0">
+                              {Math.floor(e.minute)}&apos;
+                            </Badge>
+                            <span>{e.playerId
+                              ? teamB.players.find(p => p.id === e.playerId)?.name || 'Unknown'
+                              : 'Unknown'
+                            }</span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Cards */}
+              {cardEvents.length > 0 && (
                 <>
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Substitutions</h4>
-                    {subEvents.map((e, i) => (
-                      <div key={i} className="text-sm flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs font-mono w-10 justify-center">{Math.floor(e.minute)}&apos;</Badge>
-                        <span>🔄 {e.description}</span>
-                      </div>
-                    ))}
+                    <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                      <span>🟨</span> Disciplinary
+                    </h4>
+                    <div className="space-y-1">
+                      {cardEvents.map((e, i) => (
+                        <div key={i} className="text-sm flex items-center gap-2 p-1.5 rounded bg-muted/30">
+                          <Badge variant="outline" className="text-xs font-mono w-8 justify-center shrink-0">
+                            {Math.floor(e.minute)}&apos;
+                          </Badge>
+                          <span>{e.type === 'yellow_card' ? '🟨' : '🟥'}</span>
+                          <span className="text-xs">{e.description}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <Separator />
                 </>
               )}
 
-              {/* Prediction vs Actual */}
-              {store.prediction && (
-                <div className="text-center space-y-2">
-                  <h4 className="text-sm font-medium">Pre-Match Prediction vs Actual</h4>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Predicted</div>
-                      <div className="font-mono font-bold">{store.prediction.predictedScore[0]} - {store.prediction.predictedScore[1]}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Actual</div>
-                      <div className="font-mono font-bold">{frame.score[0]} - {frame.score[1]}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Win Prob</div>
-                      <div className="font-mono font-bold text-xs">{store.prediction.winProbability[0]}/{store.prediction.winProbability[1]}/{store.prediction.winProbability[2]}</div>
+              {/* Substitutions */}
+              {subEvents.length > 0 && (
+                <>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                      <span>🔄</span> Substitutions
+                    </h4>
+                    <div className="space-y-1">
+                      {subEvents.map((e, i) => (
+                        <div key={i} className="text-sm flex items-center gap-2 p-1.5 rounded bg-muted/30">
+                          <Badge variant="outline" className="text-xs font-mono w-8 justify-center shrink-0">
+                            {Math.floor(e.minute)}&apos;
+                          </Badge>
+                          <span className="text-xs">{e.description}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                  <Separator />
+                </>
+              )}
+
+              {/* Key Stats Comparison */}
+              <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                  <BarChart3 className="w-3 h-3" /> Key Stats
+                </h4>
+                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                  <div className="p-2 rounded bg-green-50 dark:bg-green-900/10">
+                    <div className="font-bold text-lg">{frame.possession[0]}%</div>
+                    <div className="text-[10px] text-muted-foreground">Possession</div>
+                  </div>
+                  <div className="p-2 rounded bg-muted/30">
+                    <div className="font-bold text-lg">{frame.shots[0]} - {frame.shots[1]}</div>
+                    <div className="text-[10px] text-muted-foreground">Shots</div>
+                  </div>
+                  <div className="p-2 rounded bg-red-50 dark:bg-red-900/10">
+                    <div className="font-bold text-lg">{frame.possession[1]}%</div>
+                    <div className="text-[10px] text-muted-foreground">Possession</div>
+                  </div>
                 </div>
+              </div>
+
+              {/* Prediction vs Actual */}
+              {store.prediction && isFullTime && (
+                <>
+                  <Separator />
+                  <div className="text-center space-y-2">
+                    <h4 className="text-sm font-medium">Pre-Match Prediction vs Actual</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="p-2 rounded bg-muted/30">
+                        <div className="text-muted-foreground text-xs">Predicted</div>
+                        <div className="font-mono font-bold">{store.prediction.predictedScore[0]} - {store.prediction.predictedScore[1]}</div>
+                      </div>
+                      <div className="p-2 rounded bg-primary/10">
+                        <div className="text-muted-foreground text-xs">Actual</div>
+                        <div className="font-mono font-bold">{frame.score[0]} - {frame.score[1]}</div>
+                      </div>
+                      <div className="p-2 rounded bg-muted/30">
+                        <div className="text-muted-foreground text-xs">Win Prob</div>
+                        <div className="font-mono font-bold text-xs">{store.prediction.winProbability[0]}/{store.prediction.winProbability[1]}/{store.prediction.winProbability[2]}</div>
+                      </div>
+                    </div>
+                    {(() => {
+                      const predWinner = store.prediction.predictedScore[0] > store.prediction.predictedScore[1] ? teamA.name
+                        : store.prediction.predictedScore[0] < store.prediction.predictedScore[1] ? teamB.name : 'Draw';
+                      const actualWinner = frame.score[0] > frame.score[1] ? teamA.name
+                        : frame.score[0] < frame.score[1] ? teamB.name : 'Draw';
+                      const correct = predWinner === actualWinner;
+                      return (
+                        <Badge variant={correct ? 'default' : 'destructive'} className="text-xs">
+                          {correct ? 'Prediction Correct!' : 'Prediction was wrong'}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

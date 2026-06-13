@@ -27,3 +27,43 @@ Stage Summary:
 - Timeline now shows accurate cumulative stats matching animation events
 - Live substitution UI: click "Sub" button during match to pause and make subs
 - Build compiles successfully, all integration tests pass
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Polish all features - fix animation flickering, improve ball animation, enhance timeline/summary, fix live subs, polish UI
+
+Work Log:
+- Rewrote PitchCanvas.tsx to use refs instead of state in draw callback - eliminates animation flickering
+- Added Zustand store subscription to sync state to refs without causing re-renders
+- Added ball trail effect with fading history (last 500ms)
+- Added goal celebration animation with team-colored flash overlay and "GOAL!" text
+- Added player shadow, gradient fills, and has-ball golden ring indicator
+- Added net pattern on goal posts for visual detail
+- Improved score overlay with rounded corners and phase indicator (1H/HT/2H/FT)
+- Enhanced SimulationPage timeline with color-coded event cards and team badges
+- Added momentum indicator (possession flow over last 10 minutes) to stats tab
+- Added rating comparison when making live substitutions
+- Added prediction accuracy check in summary (compares predicted winner vs actual)
+- Added disciplinary section in summary for cards
+- Improved goal scorers display with team-separated grid layout
+- Polished SetupPage with squad preview (expandable player list by position)
+- Added team hover preview showing ATK/MID/DEF ratings
+- Added selected team detail card with stat bars
+- Polished TacticsPage with icons, average XI rating badge
+- Improved substitution display with color-coded player names
+- Updated main page step indicator with transition animations
+- Build compiles successfully, no TypeScript errors
+
+Stage Summary:
+- PitchCanvas animation now flicker-free using ref-based architecture
+- Ball has trail effect, gradient fill, and pentagon pattern
+- Goal celebration with colored flash and animated "GOAL!" text
+- Player circles have shadows, gradients, and has-ball indicator
+- Timeline shows color-coded events with team badges
+- Stats tab includes momentum indicator
+- Live substitution shows rating change comparison
+- Summary shows prediction accuracy, disciplinary, team-separated goal scorers
+- SetupPage has expandable squad preview per team
+- TacticsPage has polished UI with icons and rating badges
+- All builds pass cleanly

@@ -29,25 +29,38 @@ export default function Home() {
               { key: 'setup', label: 'Teams', num: 1 },
               { key: 'tactics', label: 'Tactics', num: 2 },
               { key: 'simulation', label: 'Match', num: 3 },
-            ].map((s, i) => (
-              <div key={s.key} className="flex items-center gap-1">
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step === s.key
-                      ? 'bg-primary text-primary-foreground'
-                      : i < ['setup', 'tactics', 'simulation'].indexOf(step)
-                      ? 'bg-green-500 text-white'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {i < ['setup', 'tactics', 'simulation'].indexOf(step) ? '✓' : s.num}
+            ].map((s, i) => {
+              const stepOrder = ['setup', 'tactics', 'simulation'];
+              const currentIdx = stepOrder.indexOf(step);
+              const isCompleted = i < currentIdx;
+              const isCurrent = step === s.key;
+
+              return (
+                <div key={s.key} className="flex items-center gap-1">
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                      isCurrent
+                        ? 'bg-primary text-primary-foreground scale-110'
+                        : isCompleted
+                        ? 'bg-green-500 text-white'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {isCompleted ? '✓' : s.num}
+                  </div>
+                  <span className={`hidden sm:inline transition-all ${
+                    isCurrent ? 'font-medium' : 'text-muted-foreground'
+                  }`}>
+                    {s.label}
+                  </span>
+                  {i < 2 && (
+                    <span className={`mx-1 transition-all ${
+                      i < currentIdx ? 'text-green-500' : 'text-muted-foreground'
+                    }`}>→</span>
+                  )}
                 </div>
-                <span className={`hidden sm:inline ${step === s.key ? 'font-medium' : 'text-muted-foreground'}`}>
-                  {s.label}
-                </span>
-                {i < 2 && <span className="text-muted-foreground mx-1">→</span>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </header>
