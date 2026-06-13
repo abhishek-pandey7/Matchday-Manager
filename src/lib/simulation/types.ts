@@ -36,6 +36,8 @@ export interface Team {
   shortName: string;
   color: string;
   textColor: string;
+  continent: string;
+  flag: string;
   players: Player[];
   attackRating: number;
   midfieldRating: number;
