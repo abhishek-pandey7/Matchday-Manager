@@ -69,6 +69,7 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
     <Card className="border-2">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
+          <span className="text-lg">{team.flag}</span>
           <div
             className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
             style={{ backgroundColor: team.color, color: team.textColor }}

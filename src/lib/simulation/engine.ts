@@ -110,7 +110,7 @@ function calculateGoalExpectancy(
   formation: FormationType,
   isHome: boolean
 ): number {
-  const baseRate = 1.35; // Average goals per team per match in top leagues
+  const baseRate = 1.35;
 
   const attackRatio = attackStrength / 80;
   const defenseRatio = oppositionDefense / 80;
@@ -139,12 +139,6 @@ function poissonRandom(lambda: number, rng: SeededRandom): number {
     p *= rng.next();
   } while (p > L);
   return k - 1;
-}
-
-function generatePassLocation(rng: SeededRandom, teamId: string, isTeamA: boolean): { x: number; y: number } {
-  const baseX = isTeamA ? rng.range(30, 75) : rng.range(25, 70);
-  const baseY = rng.range(15, 85);
-  return { x: baseX, y: baseY };
 }
 
 function executeSubstitutions(
@@ -185,6 +179,9 @@ function executeSubstitutions(
   return { events, updatedLineup };
 }
 
+// ============================================================
+// SIMULATE MATCH - generates events with ball position per minute
+// ============================================================
 export function simulateMatch(
   teamA: Team,
   teamB: Team,
@@ -230,7 +227,7 @@ export function simulateMatch(
   goalMinutesA.sort((a, b) => a - b);
   goalMinutesB.sort((a, b) => a - b);
 
-  // Pre-calculate which team has possession each minute
+  // Pre-calculate possession strength
   const possessionStrength = strengthA.midfield / (strengthA.midfield + strengthB.midfield);
 
   // Track match stats
@@ -244,10 +241,13 @@ export function simulateMatch(
   let passes: [number, number] = [0, 0];
   let possessionCount: [number, number] = [0, 0];
 
+  // Minute-by-minute ball position tracking
+  const minuteBallPositions: { x: number; y: number; teamId: string }[] = [];
+
   let ballX = 50, ballY = 50;
   let ballHolderTeamId = rng.chance(possessionStrength) ? teamA.id : teamB.id;
 
-  // Generate events minute by minute
+  // Kick off
   events.push({
     minute: 0,
     type: 'kick_off',
@@ -256,6 +256,7 @@ export function simulateMatch(
     x: 50,
     y: 50,
   });
+  minuteBallPositions[0] = { x: 50, y: 50, teamId: teamA.id };
 
   for (let minute = 1; minute <= 90; minute++) {
     // Fatigue increases each minute
@@ -304,16 +305,6 @@ export function simulateMatch(
         ? attackers[rng.int(0, attackers.length - 1)]
         : currentLineup.starting11.map(id => [...teamA.players, ...teamB.players].find(p => p.id === id)).filter(Boolean)[0];
 
-      events.push({
-        minute,
-        type: 'goal',
-        teamId: currentTeam.id,
-        playerId: scorer?.id,
-        description: `⚽ GOAL! ${scorer?.name || 'Unknown'} scores for ${currentTeam.name}! ${score[0]} - ${score[1]}`,
-        x: goalX,
-        y: goalY,
-      });
-
       // Pass sequences leading to goal
       const passCount = rng.int(2, 6);
       for (let p = 0; p < passCount; p++) {
@@ -328,6 +319,16 @@ export function simulateMatch(
         });
         passes[teamIdx]++;
       }
+
+      events.push({
+        minute,
+        type: 'goal',
+        teamId: currentTeam.id,
+        playerId: scorer?.id,
+        description: `⚽ GOAL! ${scorer?.name || 'Unknown'} scores for ${currentTeam.name}! ${score[0]} - ${score[1]}`,
+        x: goalX,
+        y: goalY,
+      });
     } else {
       // Regular play events
       const eventRoll = rng.next();
@@ -451,14 +452,11 @@ export function simulateMatch(
           y: offY,
         });
       } else {
-        // Pass sequence
-        const passCount = rng.int(1, 4);
-        for (let p = 0; p < passCount; p++) {
-          const passLoc = generatePassLocation(rng, currentTeam.id, isTeamA);
-          ballX = passLoc.x;
-          ballY = passLoc.y;
-          passes[teamIdx]++;
-        }
+        // Pass sequence - ball moves to midfield area
+        const passLoc = generatePassLocation(rng, currentTeam.id, isTeamA);
+        ballX = passLoc.x;
+        ballY = passLoc.y;
+        passes[teamIdx]++;
 
         if (rng.chance(0.3)) {
           events.push({
@@ -472,6 +470,9 @@ export function simulateMatch(
         }
       }
     }
+
+    // Store ball position for this minute (for animation)
+    minuteBallPositions[minute] = { x: ballX, y: ballY, teamId: ballHolderTeamId };
 
     // Half time
     if (minute === 45) {
@@ -534,6 +535,12 @@ export function simulateMatch(
   };
 }
 
+function generatePassLocation(rng: SeededRandom, teamId: string, isTeamA: boolean): { x: number; y: number } {
+  const baseX = isTeamA ? rng.range(30, 75) : rng.range(25, 70);
+  const baseY = rng.range(15, 85);
+  return { x: baseX, y: baseY };
+}
+
 function generatePlayerPositions(
   team: Team,
   lineup: Lineup,
@@ -593,7 +600,7 @@ export function predictMatch(
   teamB: Team,
   lineupA: Lineup,
   lineupB: Lineup,
-  simulations: number = 500
+  simulations: number = 100
 ): { predictedScore: [number, number]; winProbability: [number, number, number] } {
   let teamAWins = 0;
   let draws = 0;
@@ -624,7 +631,9 @@ export function predictMatch(
   };
 }
 
-// Generate minute-by-minute states for animation
+// ============================================================
+// ANIMATION FRAMES - accurate per-minute with cumulative stats
+// ============================================================
 export function generateAnimationFrames(
   teamA: Team,
   teamB: Team,
@@ -634,59 +643,253 @@ export function generateAnimationFrames(
 ): MatchState[] {
   const fullMatch = simulateMatch(teamA, teamB, lineupA, lineupB, seed);
   const frames: MatchState[] = [];
-
-  // Create a frame for each event + intermediate frames
   const sortedEvents = [...fullMatch.events].sort((a, b) => a.minute - b.minute);
 
-  for (let minute = 0; minute <= 90; minute++) {
-    const minuteEvents = sortedEvents.filter(e => Math.floor(e.minute) === minute);
+  // Track cumulative stats per minute for accuracy
+  let cumScore: [number, number] = [0, 0];
+  let cumShots: [number, number] = [0, 0];
+  let cumShotsOnTarget: [number, number] = [0, 0];
+  let cumCorners: [number, number] = [0, 0];
+  let cumFouls: [number, number] = [0, 0];
+  let cumYellowCards: [number, number] = [0, 0];
+  let cumRedCards: [number, number] = [0, 0];
+  let cumPasses: [number, number] = [0, 0];
+  let cumPossCount: [number, number] = [0, 0];
 
-    let ballX = 50, ballY = 50;
-    let ballHolderTeamId = teamA.id;
+  // Pre-compute per-minute stats from events
+  const minuteStats: Map<number, {
+    score: [number, number];
+    shots: [number, number];
+    shotsOnTarget: [number, number];
+    corners: [number, number];
+    fouls: [number, number];
+    yellowCards: [number, number];
+    redCards: [number, number];
+    passes: [number, number];
+    possCount: [number, number];
+  }> = new Map();
 
-    // Get last ball position from events up to this minute
-    for (const evt of sortedEvents) {
-      if (Math.floor(evt.minute) <= minute) {
-        ballX = evt.x;
-        ballY = evt.y;
-        if (evt.teamId) ballHolderTeamId = evt.teamId;
+  // Process events to build cumulative stats
+  for (const evt of sortedEvents) {
+    const m = Math.floor(evt.minute);
+    const isTeamAEvent = evt.teamId === teamA.id;
+    const isTeamBEvent = evt.teamId === teamB.id;
+    const teamIdx: 0 | 1 | null = isTeamAEvent ? 0 : isTeamBEvent ? 1 : null;
+
+    if (teamIdx !== null) {
+      switch (evt.type) {
+        case 'goal':
+          cumScore[teamIdx]++;
+          cumShots[teamIdx]++;
+          cumShotsOnTarget[teamIdx]++;
+          break;
+        case 'shot_on_target':
+          cumShots[teamIdx]++;
+          cumShotsOnTarget[teamIdx]++;
+          break;
+        case 'shot_off_target':
+          cumShots[teamIdx]++;
+          break;
+        case 'corner':
+          cumCorners[teamIdx]++;
+          break;
+        case 'foul':
+          cumFouls[teamIdx]++;
+          break;
+        case 'yellow_card':
+          cumYellowCards[teamIdx]++;
+          break;
+        case 'red_card':
+          cumRedCards[teamIdx]++;
+          break;
+        case 'pass_sequence':
+          cumPasses[teamIdx]++;
+          break;
       }
     }
 
-    const teamAPositions = generatePlayerPositions(teamA, lineupA, ballX, ballY, true, lineupA.tactics);
-    const teamBPositions = generatePlayerPositions(teamB, lineupB, ballX, ballY, false, lineupB.tactics);
+    // Store snapshot for this minute
+    minuteStats.set(m, {
+      score: [...cumScore] as [number, number],
+      shots: [...cumShots] as [number, number],
+      shotsOnTarget: [...cumShotsOnTarget] as [number, number],
+      corners: [...cumCorners] as [number, number],
+      fouls: [...cumFouls] as [number, number],
+      yellowCards: [...cumYellowCards] as [number, number],
+      redCards: [...cumRedCards] as [number, number],
+      passes: [...cumPasses] as [number, number],
+      possCount: [...cumPossCount] as [number, number],
+    });
+  }
 
-    // Calculate stats up to this minute
-    const relevantEvents = sortedEvents.filter(e => Math.floor(e.minute) <= minute);
-    const goals = relevantEvents.filter(e => e.type === 'goal');
-    const score: [number, number] = [
-      goals.filter(e => e.teamId === teamA.id).length,
-      goals.filter(e => e.teamId === teamB.id).length,
+  // Also track possession per minute from event teamIds
+  for (let m = 1; m <= 90; m++) {
+    const mEvents = sortedEvents.filter(e => Math.floor(e.minute) === m && e.teamId);
+    if (mEvents.length > 0) {
+      const lastEvent = mEvents[mEvents.length - 1];
+      const idx = lastEvent.teamId === teamA.id ? 0 : 1;
+      if (idx >= 0) cumPossCount[idx]++;
+    }
+  }
+
+  // Build per-minute ball position from events
+  let lastBallX = 50, lastBallY = 50;
+  let lastBallTeam = teamA.id;
+  const ballPositionMap: Map<number, { x: number; y: number; teamId: string }> = new Map();
+  ballPositionMap.set(0, { x: 50, y: 50, teamId: teamA.id });
+
+  for (const evt of sortedEvents) {
+    const m = Math.floor(evt.minute);
+    if (evt.x !== undefined && evt.y !== undefined) {
+      lastBallX = evt.x;
+      lastBallY = evt.y;
+      if (evt.teamId) lastBallTeam = evt.teamId;
+    }
+    ballPositionMap.set(m, { x: lastBallX, y: lastBallY, teamId: lastBallTeam });
+  }
+
+  // Generate frames
+  for (let minute = 0; minute <= 90; minute++) {
+    const ballPos = ballPositionMap.get(minute) || ballPositionMap.get(minute - 1) || { x: 50, y: 50, teamId: teamA.id };
+    const stats = minuteStats.get(minute);
+
+    // For minutes without events, use the last known stats
+    let frameScore: [number, number] = stats?.score || [0, 0];
+    let frameShots: [number, number] = stats?.shots || [0, 0];
+    let frameShotsOnTarget: [number, number] = stats?.shotsOnTarget || [0, 0];
+    let frameCorners: [number, number] = stats?.corners || [0, 0];
+    let frameFouls: [number, number] = stats?.fouls || [0, 0];
+    let frameYellowCards: [number, number] = stats?.yellowCards || [0, 0];
+    let frameRedCards: [number, number] = stats?.redCards || [0, 0];
+    let framePasses: [number, number] = stats?.passes || [0, 0];
+
+    // Fill forward from last known stats
+    if (!stats && minute > 0) {
+      for (let pm = minute - 1; pm >= 0; pm--) {
+        const prevStats = minuteStats.get(pm);
+        if (prevStats) {
+          frameScore = [...prevStats.score];
+          frameShots = [...prevStats.shots];
+          frameShotsOnTarget = [...prevStats.shotsOnTarget];
+          frameCorners = [...prevStats.corners];
+          frameFouls = [...prevStats.fouls];
+          frameYellowCards = [...prevStats.yellowCards];
+          frameRedCards = [...prevStats.redCards];
+          framePasses = [...prevStats.passes];
+          break;
+        }
+      }
+    }
+
+    // Possession calculation
+    const totalPoss = cumPossCount[0] + cumPossCount[1] || 1;
+    const possession: [number, number] = [
+      Math.round((cumPossCount[0] / totalPoss) * 100),
+      Math.round((cumPossCount[1] / totalPoss) * 100),
     ];
+
+    const teamAPositions = generatePlayerPositions(teamA, lineupA, ballPos.x, ballPos.y, true, lineupA.tactics);
+    const teamBPositions = generatePlayerPositions(teamB, lineupB, ballPos.x, ballPos.y, false, lineupB.tactics);
+
+    // Get events for this specific minute
+    const minuteEvents = sortedEvents.filter(e => Math.floor(e.minute) === minute);
 
     frames.push({
       minute,
-      score,
-      possession: fullMatch.possession,
-      shots: fullMatch.shots,
-      shotsOnTarget: fullMatch.shotsOnTarget,
-      corners: fullMatch.corners,
-      fouls: fullMatch.fouls,
-      yellowCards: fullMatch.yellowCards,
-      redCards: fullMatch.redCards,
-      passes: fullMatch.passes,
+      score: frameScore,
+      possession,
+      shots: frameShots,
+      shotsOnTarget: frameShotsOnTarget,
+      corners: frameCorners,
+      fouls: frameFouls,
+      yellowCards: frameYellowCards,
+      redCards: frameRedCards,
+      passes: framePasses,
       passAccuracy: fullMatch.passAccuracy,
-      ballX,
-      ballY,
+      ballX: ballPos.x,
+      ballY: ballPos.y,
       teamAPositions,
       teamBPositions,
       events: minuteEvents,
       isPlaying: true,
       isFinished: minute >= 90,
       currentPhase: minute < 45 ? 'first_half' : minute === 45 ? 'half_time' : minute < 90 ? 'second_half' : 'full_time',
-      ballHolderTeamId,
+      ballHolderTeamId: ballPos.teamId,
     });
   }
 
   return frames;
+}
+
+// ============================================================
+// LIVE SUBSTITUTION - re-simulate from current minute
+// ============================================================
+export function applyLiveSubstitution(
+  teamA: Team,
+  teamB: Team,
+  currentLineupA: Lineup,
+  currentLineupB: Lineup,
+  team: 'A' | 'B',
+  playerOutId: string,
+  playerInId: string,
+  currentMinute: number,
+  existingFrames: MatchState[],
+  seed: number
+): MatchState[] {
+  // Update the lineup for the team making the substitution
+  const lineup = team === 'A' ? { ...currentLineupA } : { ...currentLineupB};
+  const updatedStarting11 = [...lineup.starting11];
+  const idx = updatedStarting11.indexOf(playerOutId);
+
+  if (idx === -1) return existingFrames; // Player not on pitch
+
+  // Move player out to subs, player in to starting
+  updatedStarting11[idx] = playerInId;
+  const updatedSubs = [...lineup.subs];
+  const subIdx = updatedSubs.indexOf(playerInId);
+  if (subIdx !== -1) {
+    updatedSubs[subIdx] = playerOutId;
+  }
+
+  // Add the substitution as executed
+  const sub = {
+    id: `live_sub_${Date.now()}`,
+    playerOutId,
+    playerInId,
+    minute: currentMinute,
+    executed: true,
+  };
+
+  const newLineupA = team === 'A'
+    ? { ...currentLineupA, starting11: updatedStarting11, subs: updatedSubs, substitutions: [...currentLineupA.substitutions, sub] }
+    : currentLineupA;
+  const newLineupB = team === 'B'
+    ? { ...currentLineupB, starting11: updatedStarting11, subs: updatedSubs, substitutions: [...currentLineupB.substitutions, sub] }
+    : currentLineupB;
+
+  // Re-simulate from current minute onwards
+  const newFrames = generateAnimationFrames(teamA, teamB, newLineupA, newLineupB, seed);
+
+  // Keep existing frames up to current minute, replace from current minute onwards
+  const combined = [...existingFrames.slice(0, currentMinute), ...newFrames.slice(currentMinute)];
+
+  // Add substitution event to the current minute frame
+  if (combined[currentMinute]) {
+    const subEvent: MatchEvent = {
+      minute: currentMinute,
+      type: 'substitution',
+      teamId: team === 'A' ? teamA.id : teamB.id,
+      playerId: playerOutId,
+      secondaryPlayerId: playerInId,
+      description: `Substitution: ${[...teamA.players, ...teamB.players].find(p => p.id === playerOutId)?.name} ➜ ${[...teamA.players, ...teamB.players].find(p => p.id === playerInId)?.name}`,
+      x: 5,
+      y: 50,
+    };
+    combined[currentMinute] = {
+      ...combined[currentMinute],
+      events: [...combined[currentMinute].events, subEvent],
+    };
+  }
+
+  return combined;
 }

@@ -10,7 +10,7 @@ import {
 } from '@/lib/simulation/types';
 import { TEAMS } from '@/lib/simulation/data';
 import { getAutoLineup } from '@/lib/simulation/formations';
-import { simulateMatch, predictMatch, generateAnimationFrames } from '@/lib/simulation/engine';
+import { simulateMatch, predictMatch, generateAnimationFrames, applyLiveSubstitution } from '@/lib/simulation/engine';
 
 type AppStep = 'setup' | 'tactics' | 'simulation';
 
@@ -41,6 +41,7 @@ interface CoachStore {
   currentFrame: number;
   isAnimating: boolean;
   animationSpeed: number;
+  simulationSeed: number;
   prediction: { predictedScore: [number, number]; winProbability: [number, number, number] } | null;
 
   startSimulation: () => void;
@@ -48,6 +49,9 @@ interface CoachStore {
   pauseAnimation: () => void;
   setFrame: (frame: number) => void;
   setAnimationSpeed: (speed: number) => void;
+
+  // Live substitution
+  liveSub: (team: 'A' | 'B', playerOutId: string, playerInId: string) => void;
 
   // Event log
   eventLog: MatchEvent[];
@@ -163,6 +167,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   currentFrame: 0,
   isAnimating: false,
   animationSpeed: 5,
+  simulationSeed: Date.now(),
   prediction: null,
   eventLog: [],
   filteredEvents: [],
@@ -171,14 +176,15 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     const state = get();
     const teamA = TEAMS.find(t => t.id === state.teamAId)!;
     const teamB = TEAMS.find(t => t.id === state.teamBId)!;
+    const seed = Date.now();
 
     // Set step first so user sees we're loading, then compute
-    set({ step: 'simulation', matchResult: null, animationFrames: [], prediction: null });
+    set({ step: 'simulation', matchResult: null, animationFrames: [], prediction: null, simulationSeed: seed });
 
     // Use setTimeout to allow React to render the loading state before heavy computation
     setTimeout(() => {
-      const result = simulateMatch(teamA, teamB, state.lineupA, state.lineupB);
-      const frames = generateAnimationFrames(teamA, teamB, state.lineupA, state.lineupB);
+      const result = simulateMatch(teamA, teamB, state.lineupA, state.lineupB, seed);
+      const frames = generateAnimationFrames(teamA, teamB, state.lineupA, state.lineupB, seed);
       const prediction = predictMatch(teamA, teamB, state.lineupA, state.lineupB, 100);
 
       set({
@@ -199,6 +205,61 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   pauseAnimation: () => set({ isAnimating: false }),
   setFrame: (frame) => set({ currentFrame: Math.max(0, Math.min(90, frame)) }),
   setAnimationSpeed: (speed) => set({ animationSpeed: speed }),
+
+  // Live substitution during animation
+  liveSub: (team, playerOutId, playerInId) => {
+    const state = get();
+    const teamA = TEAMS.find(t => t.id === state.teamAId)!;
+    const teamB = TEAMS.find(t => t.id === state.teamBId)!;
+
+    const newFrames = applyLiveSubstitution(
+      teamA, teamB,
+      state.lineupA, state.lineupB,
+      team, playerOutId, playerInId,
+      state.currentFrame,
+      state.animationFrames,
+      state.simulationSeed
+    );
+
+    // Update the lineup in the store too
+    const lineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const updatedStarting11 = [...lineup.starting11];
+    const idx = updatedStarting11.indexOf(playerOutId);
+    if (idx !== -1) {
+      updatedStarting11[idx] = playerInId;
+      const updatedSubs = [...lineup.subs];
+      const subIdx = updatedSubs.indexOf(playerInId);
+      if (subIdx !== -1) {
+        updatedSubs[subIdx] = playerOutId;
+      }
+      lineup.starting11 = updatedStarting11;
+      lineup.subs = updatedSubs;
+      lineup.substitutions = [...lineup.substitutions, {
+        id: `live_sub_${Date.now()}`,
+        playerOutId,
+        playerInId,
+        minute: state.currentFrame,
+        executed: true,
+      }];
+    }
+
+    // Rebuild event log from new frames
+    const allEvents: MatchEvent[] = [];
+    for (const frame of newFrames) {
+      allEvents.push(...frame.events);
+    }
+    const filtered = allEvents.filter(e =>
+      ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off'].includes(e.type)
+    );
+
+    set({
+      animationFrames: newFrames,
+      lineupA: team === 'A' ? lineup : state.lineupA,
+      lineupB: team === 'B' ? lineup : state.lineupB,
+      eventLog: allEvents,
+      filteredEvents: filtered,
+    });
+  },
 
   resetMatch: () => set({
     step: 'setup',

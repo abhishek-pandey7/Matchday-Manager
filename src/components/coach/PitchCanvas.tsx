@@ -6,11 +6,20 @@ import { TEAMS } from '@/lib/simulation/data';
 
 export default function PitchCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number>(0);
+  const prevFrameRef = useRef<number>(-1);
+  const transitionRef = useRef<{ startX: number; startY: number; endX: number; endY: number; progress: number }>({
+    startX: 50, startY: 50, endX: 50, endY: 50, progress: 1,
+  });
+  const playerTransitionsRef = useRef<Map<string, { startX: number; startY: number; endX: number; endY: number }>>(new Map());
+
   const {
     animationFrames,
     currentFrame,
     teamAId,
     teamBId,
+    isAnimating,
+    animationSpeed,
   } = useCoachStore();
 
   const teamA = TEAMS.find(t => t.id === teamAId)!;
@@ -55,17 +64,13 @@ export default function PitchCanvas() {
     // Penalty areas
     const penAreaW = w * 0.17;
     const penAreaH = h * 0.44;
-    // Left
     ctx.strokeRect(pad, h / 2 - penAreaH / 2, penAreaW, penAreaH);
-    // Right
     ctx.strokeRect(w - pad - penAreaW, h / 2 - penAreaH / 2, penAreaW, penAreaH);
 
     // Goal areas
     const goalAreaW = w * 0.06;
     const goalAreaH = h * 0.22;
-    // Left
     ctx.strokeRect(pad, h / 2 - goalAreaH / 2, goalAreaW, goalAreaH);
-    // Right
     ctx.strokeRect(w - pad - goalAreaW, h / 2 - goalAreaH / 2, goalAreaW, goalAreaH);
 
     // Goals
@@ -111,6 +116,11 @@ export default function PitchCanvas() {
     ctx.stroke();
   }, []);
 
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  // Easing function for smooth transitions
+  const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -132,7 +142,13 @@ export default function PitchCanvas() {
     const scaleX = (x: number) => pad + (x / 100) * (w - pad * 2);
     const scaleY = (y: number) => pad + (y / 100) * (h - pad * 2);
 
-    // Draw players
+    // Calculate interpolated ball position
+    const tr = transitionRef.current;
+    const ballProgress = easeInOut(Math.min(1, tr.progress));
+    const interpBallX = lerp(tr.startX, tr.endX, ballProgress);
+    const interpBallY = lerp(tr.startY, tr.endY, ballProgress);
+
+    // Draw players with interpolation
     const drawTeam = (
       positions: { playerId: string; currentX: number; currentY: number; hasBall: boolean }[],
       color: string,
@@ -140,22 +156,29 @@ export default function PitchCanvas() {
       team: typeof teamA
     ) => {
       for (const pos of positions) {
-        const px = scaleX(pos.currentX);
-        const py = scaleY(pos.currentY);
+        let px: number, py: number;
+        const pTr = playerTransitionsRef.current.get(pos.playerId);
+        if (pTr) {
+          px = scaleX(lerp(pTr.startX, pTr.endX, ballProgress));
+          py = scaleY(lerp(pTr.startY, pTr.endY, ballProgress));
+        } else {
+          px = scaleX(pos.currentX);
+          py = scaleY(pos.currentY);
+        }
+
         const player = team.players.find(p => p.id === pos.playerId);
         const radius = 12;
 
-        // Player circle
+        // Player circle with slight glow
         ctx.beginPath();
         ctx.arc(px, py, radius, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Shirt number / initials
-        const label = player ? player.name.split(' ').pop()?.[0] || '' + (player.name.split(' ').pop()?.slice(1, 2) || '') : '';
+        // Short name label
         const shortLabel = player ? player.name.split(' ').pop()?.substring(0, 3) || '?' : '?';
         ctx.fillStyle = textColor;
         ctx.font = 'bold 7px sans-serif';
@@ -170,9 +193,21 @@ export default function PitchCanvas() {
     // Draw Team B (right side)
     drawTeam(frame.teamBPositions, teamB.color, teamB.textColor, teamB);
 
-    // Draw ball
-    const ballX = scaleX(frame.ballX);
-    const ballY = scaleY(frame.ballY);
+    // Draw ball with trail effect
+    const ballX = scaleX(interpBallX);
+    const ballY = scaleY(interpBallY);
+
+    // Ball trail (when moving)
+    if (tr.progress < 0.95) {
+      const trailX = scaleX(tr.startX);
+      const trailY = scaleY(tr.startY);
+      ctx.beginPath();
+      ctx.moveTo(trailX, trailY);
+      ctx.lineTo(ballX, ballY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
 
     // Ball glow
     const gradient = ctx.createRadialGradient(ballX, ballY, 2, ballX, ballY, 16);
@@ -224,6 +259,89 @@ export default function PitchCanvas() {
 
   }, [animationFrames, currentFrame, teamA, teamB, drawPitch]);
 
+  // Handle frame transitions with smooth interpolation
+  useEffect(() => {
+    if (currentFrame !== prevFrameRef.current) {
+      const prevFrame = animationFrames[prevFrameRef.current];
+      const newFrame = animationFrames[currentFrame];
+
+      if (prevFrame && newFrame) {
+        // Set up ball transition
+        transitionRef.current = {
+          startX: prevFrame.ballX,
+          startY: prevFrame.ballY,
+          endX: newFrame.ballX,
+          endY: newFrame.ballY,
+          progress: 0,
+        };
+
+        // Set up player transitions
+        const newPlayerTransitions = new Map<string, { startX: number; startY: number; endX: number; endY: number }>();
+
+        for (const pos of newFrame.teamAPositions) {
+          const prevPos = prevFrame.teamAPositions.find(p => p.playerId === pos.playerId);
+          if (prevPos) {
+            newPlayerTransitions.set(pos.playerId, {
+              startX: prevPos.currentX,
+              startY: prevPos.currentY,
+              endX: pos.currentX,
+              endY: pos.currentY,
+            });
+          }
+        }
+
+        for (const pos of newFrame.teamBPositions) {
+          const prevPos = prevFrame.teamBPositions.find(p => p.playerId === pos.playerId);
+          if (prevPos) {
+            newPlayerTransitions.set(pos.playerId, {
+              startX: prevPos.currentX,
+              startY: prevPos.currentY,
+              endX: pos.currentX,
+              endY: pos.currentY,
+            });
+          }
+        }
+
+        playerTransitionsRef.current = newPlayerTransitions;
+      }
+
+      prevFrameRef.current = currentFrame;
+    }
+  }, [currentFrame, animationFrames]);
+
+  // Animation loop with requestAnimationFrame for smooth transitions
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let lastTime = 0;
+    const transitionDuration = isAnimating ? Math.max(80, 600 / animationSpeed) : 150; // ms
+
+    const animate = (timestamp: number) => {
+      if (lastTime === 0) lastTime = timestamp;
+      const delta = timestamp - lastTime;
+      lastTime = timestamp;
+
+      // Update transition progress
+      const tr = transitionRef.current;
+      if (tr.progress < 1) {
+        tr.progress = Math.min(1, tr.progress + (delta / transitionDuration));
+      }
+
+      draw();
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [draw, isAnimating, animationSpeed]);
+
+  // Resize handler
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -235,17 +353,12 @@ export default function PitchCanvas() {
       const h = Math.min(w * 0.65, 500);
       canvas.width = w;
       canvas.height = h;
-      draw();
     };
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, [draw]);
-
-  useEffect(() => {
-    draw();
-  }, [currentFrame, draw]);
+  }, []);
 
   return (
     <div className="w-full relative">

@@ -11,6 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Play,
   Pause,
@@ -22,6 +23,8 @@ import {
   BarChart3,
   List,
   Gauge,
+  ArrowLeftRight,
+  X,
 } from 'lucide-react';
 
 const EVENT_ICONS: Record<MatchEventType, string> = {
@@ -44,6 +47,10 @@ const EVENT_ICONS: Record<MatchEventType, string> = {
 export default function SimulationPage() {
   const store = useCoachStore();
   const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [showSubPanel, setShowSubPanel] = useState(false);
+  const [subTeam, setSubTeam] = useState<'A' | 'B'>('A');
+  const [subOut, setSubOut] = useState('');
+  const [subIn, setSubIn] = useState('');
 
   const teamA = TEAMS.find(t => t.id === store.teamAId)!;
   const teamB = TEAMS.find(t => t.id === store.teamBId)!;
@@ -99,9 +106,37 @@ export default function SimulationPage() {
   const stepForward = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(Math.min(90, store.currentFrame + 1)); };
   const stepBack = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(Math.max(0, store.currentFrame - 1)); };
 
+  const handleLiveSub = () => {
+    if (!subOut || !subIn) return;
+    // Pause the match first
+    stopAnimation();
+    store.pauseAnimation();
+    // Apply the substitution
+    store.liveSub(subTeam, subOut, subIn);
+    // Reset sub form
+    setSubOut('');
+    setSubIn('');
+    setShowSubPanel(false);
+  };
+
+  // Get current players on pitch for substitution
+  const currentLineup = subTeam === 'A' ? store.lineupA : store.lineupB;
+  const currentTeam = subTeam === 'A' ? teamA : teamB;
+  const pitchPlayers = currentLineup.starting11
+    .map(id => currentTeam.players.find(p => p.id === id))
+    .filter(Boolean);
+  const benchPlayers = currentLineup.subs
+    .map(id => currentTeam.players.find(p => p.id === id))
+    .filter(p => p && p.id !== undefined);
+
   if (!frame || !result) return null;
 
+  // Build key events list that accurately reflects animation frames
   const keyEvents = store.filteredEvents.filter(e => Math.floor(e.minute) <= store.currentFrame);
+
+  // Build accurate summary from frame data
+  const goalEvents = store.eventLog.filter(e => e.type === 'goal' && Math.floor(e.minute) <= store.currentFrame);
+  const subEvents = store.eventLog.filter(e => e.type === 'substitution' && Math.floor(e.minute) <= store.currentFrame);
 
   return (
     <div className="space-y-4">
@@ -110,6 +145,7 @@ export default function SimulationPage() {
         <div className="bg-gradient-to-r from-muted/50 to-muted p-4 md:p-6">
           <div className="flex items-center justify-center gap-4 md:gap-8">
             <div className="flex items-center gap-3">
+              <span className="text-2xl">{teamA.flag}</span>
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shadow"
                 style={{ backgroundColor: teamA.color, color: teamA.textColor }}
@@ -139,6 +175,7 @@ export default function SimulationPage() {
               >
                 {teamB.shortName}
               </div>
+              <span className="text-2xl">{teamB.flag}</span>
             </div>
           </div>
 
@@ -166,7 +203,6 @@ export default function SimulationPage() {
       {/* Pitch */}
       <Card>
         <CardContent className="p-2 md:p-4">
-          {/* Import PitchCanvas lazily */}
           <PitchCanvasWrapper />
 
           {/* Playback controls */}
@@ -190,6 +226,16 @@ export default function SimulationPage() {
               </Button>
               <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToEnd}>
                 <SkipForward className="w-3 h-3" />
+              </Button>
+              {/* Live Sub Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-2 gap-1 text-xs"
+                onClick={() => { stopAnimation(); store.pauseAnimation(); setShowSubPanel(true); }}
+                title="Make a live substitution"
+              >
+                <ArrowLeftRight className="w-3 h-3" /> Sub
               </Button>
             </div>
 
@@ -223,6 +269,91 @@ export default function SimulationPage() {
         </CardContent>
       </Card>
 
+      {/* Live Substitution Panel */}
+      {showSubPanel && (
+        <Card className="border-2 border-primary/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4" /> Live Substitution — {store.currentFrame}&apos;
+              </span>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowSubPanel(false)}>
+                <X className="w-3 h-3" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Team selector */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setSubTeam('A'); setSubOut(''); setSubIn(''); }}
+                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  subTeam === 'A' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <span className="mr-1">{teamA.flag}</span> {teamA.name}
+              </button>
+              <button
+                onClick={() => { setSubTeam('B'); setSubOut(''); setSubIn(''); }}
+                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                  subTeam === 'B' ? 'border-destructive bg-destructive/5' : 'border-border hover:border-destructive/50'
+                }`}
+              >
+                <span className="mr-1">{teamB.flag}</span> {teamB.name}
+              </button>
+            </div>
+
+            {/* Player OUT */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Player OFF</label>
+              <Select value={subOut} onValueChange={setSubOut}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select player to take off..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pitchPlayers.map(p => (
+                    <SelectItem key={p!.id} value={p!.id}>
+                      {p!.name} ({p!.position}) - {p!.rating}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Player IN */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Player ON</label>
+              <Select value={subIn} onValueChange={setSubIn}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select substitute to bring on..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {benchPlayers.map(p => (
+                    <SelectItem key={p!.id} value={p!.id}>
+                      {p!.name} ({p!.position}) - {p!.rating}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 text-xs"
+                disabled={!subOut || !subIn || subOut === subIn}
+                onClick={handleLiveSub}
+              >
+                <ArrowLeftRight className="w-3 h-3 mr-1" /> Make Substitution
+              </Button>
+              <Button size="sm" variant="outline" className="text-xs" onClick={() => setShowSubPanel(false)}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats & Timeline */}
       <Tabs defaultValue="timeline" className="w-full">
         <TabsList className="w-full grid grid-cols-3">
@@ -238,22 +369,24 @@ export default function SimulationPage() {
                 <div className="p-2 space-y-0.5">
                   {keyEvents.length === 0 ? (
                     <p className="text-center text-muted-foreground text-sm py-8">
-                      Match events will appear here...
+                      Match events will appear here as the match progresses...
                     </p>
                   ) : (
                     keyEvents.map((event, i) => (
                       <div
-                        key={i}
+                        key={`${event.minute}-${event.type}-${i}`}
                         className={`flex items-start gap-2 p-2 rounded text-sm ${
                           event.type === 'goal'
                             ? 'bg-yellow-50 dark:bg-yellow-900/20 font-medium'
                             : event.type === 'red_card'
                             ? 'bg-red-50 dark:bg-red-900/20'
+                            : event.type === 'substitution'
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
                             : 'hover:bg-muted/50'
                         }`}
                       >
                         <Badge variant="outline" className="text-[10px] font-mono shrink-0 w-10 justify-center">
-                          {event.minute}&apos;
+                          {Math.floor(event.minute)}&apos;
                         </Badge>
                         <span className="shrink-0">{EVENT_ICONS[event.type]}</span>
                         <span className="text-xs leading-relaxed">{event.description}</span>
@@ -311,22 +444,28 @@ export default function SimulationPage() {
           <Card>
             <CardContent className="p-4 space-y-4">
               <div className="text-center space-y-2">
-                <h3 className="text-lg font-bold">Match Result</h3>
+                <h3 className="text-lg font-bold">Match Summary</h3>
                 <div className="flex items-center justify-center gap-4">
                   <div className="text-right">
-                    <div className="font-bold">{teamA.name}</div>
+                    <div className="flex items-center gap-2 justify-end">
+                      <span>{teamA.flag}</span>
+                      <span className="font-bold">{teamA.name}</span>
+                    </div>
                   </div>
                   <div className="text-3xl font-black">
-                    {result.score[0]} - {result.score[1]}
+                    {frame.score[0]} - {frame.score[1]}
                   </div>
                   <div className="text-left">
-                    <div className="font-bold">{teamB.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold">{teamB.name}</span>
+                      <span>{teamB.flag}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {result.score[0] > result.score[1]
+                  {frame.score[0] > frame.score[1]
                     ? `${teamA.name} wins!`
-                    : result.score[0] < result.score[1]
+                    : frame.score[0] < frame.score[1]
                     ? `${teamB.name} wins!`
                     : 'Draw!'}
                 </div>
@@ -334,6 +473,40 @@ export default function SimulationPage() {
 
               <Separator />
 
+              {/* Goal Scorers - accurate from animation */}
+              <div>
+                <h4 className="text-sm font-medium mb-2">Goal Scorers</h4>
+                {goalEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No goals yet</p>
+                ) : (
+                  goalEvents.map((e, i) => (
+                    <div key={i} className="text-sm flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs font-mono w-10 justify-center">{Math.floor(e.minute)}&apos;</Badge>
+                      <span>{e.description}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Substitutions made */}
+              {subEvents.length > 0 && (
+                <>
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Substitutions</h4>
+                    {subEvents.map((e, i) => (
+                      <div key={i} className="text-sm flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs font-mono w-10 justify-center">{Math.floor(e.minute)}&apos;</Badge>
+                        <span>🔄 {e.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Separator />
+                </>
+              )}
+
+              {/* Prediction vs Actual */}
               {store.prediction && (
                 <div className="text-center space-y-2">
                   <h4 className="text-sm font-medium">Pre-Match Prediction vs Actual</h4>
@@ -344,30 +517,15 @@ export default function SimulationPage() {
                     </div>
                     <div>
                       <div className="text-muted-foreground">Actual</div>
-                      <div className="font-mono font-bold">{result.score[0]} - {result.score[1]}</div>
+                      <div className="font-mono font-bold">{frame.score[0]} - {frame.score[1]}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Win Prob</div>
-                      <div className="font-mono font-bold">{store.prediction.winProbability[0]}/{store.prediction.winProbability[1]}/{store.prediction.winProbability[2]}</div>
+                      <div className="font-mono font-bold text-xs">{store.prediction.winProbability[0]}/{store.prediction.winProbability[1]}/{store.prediction.winProbability[2]}</div>
                     </div>
                   </div>
                 </div>
               )}
-
-              <Separator />
-
-              <div className="text-center space-y-2">
-                <h4 className="text-sm font-medium">Goal Scorers</h4>
-                {result.events.filter(e => e.type === 'goal').map((e, i) => (
-                  <div key={i} className="text-sm">
-                    <Badge variant="outline" className="text-xs mr-1">{e.minute}&apos;</Badge>
-                    {e.description}
-                  </div>
-                ))}
-                {result.events.filter(e => e.type === 'goal').length === 0 && (
-                  <p className="text-sm text-muted-foreground">No goals in this match</p>
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
