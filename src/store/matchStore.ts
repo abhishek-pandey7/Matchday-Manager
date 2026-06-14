@@ -100,8 +100,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     if (team) set({ teamBId: id, lineupB: createDefaultLineup(team) });
   },
 
-  lineupA: createDefaultLineup(TEAMS[0]),
-  lineupB: createDefaultLineup(TEAMS[1]),
+  lineupA: createDefaultLineup(TEAMS.find(t => t.id === 'argentina')!),
+  lineupB: createDefaultLineup(TEAMS.find(t => t.id === 'france')!),
 
   setFormation: (team, formation) => {
     const state = get();

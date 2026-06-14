@@ -1,0 +1,766 @@
+     1→     1→GROUP A
+     2→     2→
+     3→     3→
+     4→     4→Mexico
+     5→     5→Final squad was announced on May 31.
+     6→     6→
+     7→     7→Goalkeepers: Carlos Acevedo (Santos Laguna), Guillermo Ochoa (AEL Limassol), Raúl Rangel (Chivas)
+     8→     8→
+     9→     9→Defenders: Jesús Gallardo (Toluca), Israel Reyes (América), César Montes (Lokomotiv Moscow), Jorge Sánchez (PAOK), Johan Vásquez (Genoa), Mateo Chávez (AZ Alkmaar)
+    10→    10→
+    11→    11→Midfielders: Gilberto Mora (Tijuana), Edson Álvarez (Fenerbahçe), Orbelín Pineda (AEK Athens), Luis Romo (Chivas), Brian Gutiérrez (Chivas), Obed Vargas (Atlético Madrid), César Huerta (Anderlecht), Luis Chávez (Dinamo Moscow), Erik Lira (Cruz Azul), Álvaro Fidalgo (Real Betis), Roberto Alvarado (Chivas)
+    12→    12→
+    13→    13→Forwards: Armando González (Chivas), Raúl Jiménez (Fulham), Julián Quiñones (Al Qadsiah), Santiago Gimenez (AC Milan), Guillermo Martínez (Pumas), Alexis Vega (Toluca)
+    14→    14→
+    15→    15→Manager: Javier Aguirre
+    16→    16→
+    17→    17→
+    18→    18→
+    19→    19→South Africa
+    20→    20→Final roster announced May 27
+    21→    21→
+    22→    22→Goalkeepers: Ronwen Williams (Mamelodi Sundowns), Ricardo Goss (Mamelodi Sundowns), Sipho Chaine (Orlando Pirates)
+    23→    23→
+    24→    24→Defenders: Khuliso Mudau (Mamelodi Sundowns), Nkosinathi Sibisi (Orlando Pirates), Ime Okon (Hannover 96), Khulumani Ndamane (Mamelodi Sundowns), Aubrey Modiba (Mamelodi Sundowns), Samukelo Kabini (Molde), Thabang Matuludi (Polokwane City), Olwethu Makhanya (Philadelphia Union), Kamgogelo Sebelebele (Orlando Pirates), Bradley Cross (Kaizer Chiefs), Mbekezeli Mbokazi (Chicago Fire)
+    25→    25→
+    26→    26→Midfielders: Teboho Mokoena (Mamelodi Sundowns), Thalente Mbatha (Orlando Pirates), Yaya Sithole (Tondela), Jayden Adams (Mamelodi Sundowns)
+    27→    27→
+    28→    28→Forwards: Oswin Appollis (Orlando Pirates), Iqraam Rayners (Mamelodi Sundowns), Tshepang Moremi (Orlando Pirates), Relebohile Mofokeng (Orlando Pirates), Evidence Makgopa (Orlando Pirates), Themba Zwane (Mamelodi Sundowns), Lyle Foster (Burnley), Thapelo Maseko (AEL Limassol)
+    29→    29→
+    30→    30→Manager: Hugo Broos
+    31→    31→
+    32→    32→
+    33→    33→
+    34→    34→South Korea
+    35→    35→Roster announced on May 16.
+    36→    36→
+    37→    37→Goalkeepers: Jo Hyun-Woo (Ulsan HD), Kim Seung-Gyu (FC Tokyo), Song Bum-Keun (Jeonbuk Hyundai)
+    38→    38→
+    39→    39→Defenders: Kim Min-Jae (Bayern Munich), Jo Yu-Min (Sharjah), Lee Han-Beom (Midtjylland), Kim Tae-Hyun (Kashima Antlers), Park Jin-Seop (Zhejiang FC), Lee Ki-Hyeok (Gangwon FC), Lee Tae-Seok (Austria Vienna), Seol Young-Woo (Red Star Belgrade), Jens Castrop (Borussia Mönchengladbach), Kim Moon-Hwan (Daejeon Hana)
+    40→    40→
+    41→    41→Midfielders: Yang Hyun-Jun (Celtic), Paik Seung-Ho (Birmingham City), Hwang In-Beom (Feyenoord), Kim Jin-Kyu (Jeonbuk Hyundai), Bae Jun-Ho (Stoke City), Um Ji-Sung (Swansea City), Hwang Hee-Chan (Wolverhampton), Lee Dong-Gyeong (Ulsan HD), Lee Jae-Sung (Mainz), Lee Kang-In (Paris Saint-Germain)
+    42→    42→
+    43→    43→Forwards: Oh Hyun-Kyu (Besiktas), Son Heung-Min (LAFC), Cho Kyu-Sung (Midtjylland)
+    44→    44→
+    45→    45→Manager: Hong Myung-Bo
+    46→    46→
+    47→    47→
+    48→    48→
+    49→    49→Czechia
+    50→    50→Final squad was announced May 31
+    51→    51→
+    52→    52→Goalkeepers: Lukas Hornicek (Braga), Jan Koutny (Sigma Olomouc), Jindrich Stanek (Slavia Prague)
+    53→    53→
+    54→    54→Defenders: Vladimír Coufal (TSG Hoffenheim), David Douděra (Slavia Prague), Tomáš Holeš (Slavia Prague), Robin Hranáč (TSG Hoffenheim), Štěpán Chaloupek (Slavia Prague), David Jurásek (Slavia Prague), Ladislav Krejčí (Wolverhampton Wanderers), Jaroslav Zelený (Sparta Prague), David Zima (Slavia Prague)
+    55→    55→
+    56→    56→Midfielders: Lukás Cerv (Viktoria Plzen), Vladimir Darida (Hradec Kralove), Lukás Provod (Slavia Prague), Michal Sadílek (Slavia Prague), Hugo Sochůrek (Sparta Prague), Alexandr Sojka (Viktoria Plzen), Tomáš Souček (West Ham)
+    57→    57→
+    58→    58→Forwards: Adam Hložek (TSG Hoffenheim), Tomáš Chorý (Slavia Prague), Mojmír Chytil (Slavia Prague), Jan Kuchta (Sparta Prague), Patrik Schick (Bayer Leverkusen), Matej Vydra (Viktoria Plzen), Denis Višinský (Viktoria Plzen)
+    59→    59→
+    60→    60→Manager: Miroslav Koubek
+    61→    61→
+    62→    62→
+    63→    63→
+    64→    64→
+    65→    65→GROUP B
+    66→    66→
+    67→    67→
+    68→    68→Canada
+    69→    69→Final squad announced May 29
+    70→    70→
+    71→    71→Goalkeepers: Dayne St. Clair (Inter Miami), Maxime Crépeau (Orlando City), Owen Goodman (Barnsley)
+    72→    72→
+    73→    73→Defenders: Moïse Bombito (Nice), Derek Cornelius (Rangers), Alphonso Davies (Bayern Munich), Luc De Fougerolles (FCV Dender), Alistair Johnston (Celtic), Alfie Jones (Middlesbrough), Richie Laryea (Toronto FC), Niko Sigur (Hajduk Split), Joel Waterman (Chicago Fire)
+    74→    74→
+    75→    75→Midfielders: Ali Ahmed (Norwich City), Tajon Buchanan (Villarreal), Mathieu Choinière (LAFC), Stephen Eustáquio (LAFC), Marcelo Flores (Tigres UANL), Ismaël Koné (Sassuolo), Liam Millar (Hull City), Jonathan Osorio (Toronto FC), Nathan Saliba (Anderlecht), Jacob Shaffelburg (LAFC)
+    76→    76→
+    77→    77→Forwards: Jonathan David (Juventus), Promise David (Royale-Union Saint Gilloise), Cyle Larin (Southampton), Tani Oluwaseyi (Villarreal)
+    78→    78→
+    79→    79→Manager: Jesse Marsch
+    80→    80→
+    81→    81→
+    82→    82→
+    83→    83→Bosnia-Herzegovina
+    84→    84→Final squad was announced on May 11
+    85→    85→
+    86→    86→Goalkeepers: Nikola Vasilj (St Pauli), Martin Zlomislic (Rijeka), Osman Hadzikic (Slaven Belupo)
+    87→    87→
+    88→    88→Defenders: Sead Kolasinac (Atalanta), Amar Dedic (Benfica), Nihad Mujakic (Gaziantep), Nikola Katic (Schalke 04), Tarik Muharemovic (Sassuolo), Stjepan Radeljic (Rijeka), Dennis Hadzikadunic (Sampdoria), Nidal Celik (Lens)
+    89→    89→
+    90→    90→Midfielders: Amir Hadziahmetovic (Hull City), Ivan Sunjic (Pafos), Ivan Basic (Astana), Dzenis Burnic (Karlsruher SC), Ermin Mahmic (Slovan Liberec), Benjamin Tahirovic (Brondby), Amar Memic (Viktoria Plzen), Armin Gigovic (Young Boys), Kerim Alajbegovic (RB Salzburg), Esmir Bajraktarevic (PSV Eindhoven)
+    91→    91→
+    92→    92→Forwards: Ermedin Demirovic (VfB Stuttgart), Jovo Lukic (Universitatea Cluj), Samed Bazdar (Jagiellonia Bialystok), Haris Tabakovic (Borussia Moenchengladbach), Edin Dzeko (Schalke 04)
+    93→    93→
+    94→    94→Manager: Sergej Barbarez
+    95→    95→
+    96→    96→
+    97→    97→
+    98→    98→Qatar
+    99→    99→Final squad announced on June 1
+   100→   100→
+   101→   101→Goalkeepers: Salah Zakaria (Al Duhail), Meshaal Barsham (Al Sadd), Mahmoud Abunada (Al Rayyan)
+   102→   102→
+   103→   103→Defenders: Boualem Khoukhi (Al Sadd), Pedro Miguel (Al Sadd), Sultan Al Brake (Al Duhail), Al-Hashmi Al-Hussain (Al Arabi), Ayoub Al-Alawi (Al Gharafa), Issa Laye (Al Arabi), Lucas Mendes (Al Wakrah), Homam Al-Amin (Cultural Leonesa)
+   104→   104→
+   105→   105→Midfielders: Ahmed Fathi (Al Arabi), Jassim Gaber (Al Rayyan), Assim Madibo (Al Wakrah), Abdulaziz Hatem (Al Rayyan), Karim Boudiaf (Al Duhail), Mohammed Mannai (Al Shamal)
+   106→   106→
+   107→   107→Forwards: Almoez Ali (Al Duhail), Akram Afif (Al Sadd), Tahsin Mohammed (Al Duhail), Edmílson Junior (Al Duhail), Ahmed Al-Ganehi (Al Gharafa), Ahmed Alaa (Al Rayyan), Hassan Al-Haydos (Al Sadd), Mohammed Muntari (Al Gharafa), Yusuf Abdurisag (Al Wakrah)
+   108→   108→
+   109→   109→Manager: Julen Lopetegui
+   110→   110→
+   111→   111→
+   112→   112→
+   113→   113→Switzerland
+   114→   114→Roster announced May 19
+   115→   115→
+   116→   116→Goalkeepers: Gregor Kobel (Borussia Dortmund), Yvon Mvogo (Lorient), Marvin Keller (Young Boys)
+   117→   117→
+   118→   118→Defenders: Manuel Akanji (Inter Milan), Nico Elvedi (Borussia Mönchengladbach), Ricardo Rodriguez (Real Betis), Silvan Widmer (Mainz), Miro Muheim (Hamburger SV), Aurèle Amenda (Eintracht Frankfurt), Eray Cömert (Valencia), Luca Jaquez (Stuttgart)
+   119→   119→
+   120→   120→Midfielders: Granit Xhaka (Sunderland), Johan Manzambi (Freiburg), Remo Freuler (Bologna), Denis Zakaria (Monaco), Ardon Jashari (AC Milan), Djibril Sow (Sevilla), Christian Fassnacht (Young Boys), Michel Aebischer (Pisa), Fabian Rieder (Augsburg), Rubén Vargas (Sevilla)
+   121→   121→
+   122→   122→Forwards: Breel Embolo (Rennes), Noah Okafor (Leeds), Dan Ndoye (Nottingham Forest), Zeki Amdouni (Burnley), Cedric Itten (Fortuna Dusseldorf)
+   123→   123→
+   124→   124→Manager: Murat Yakin
+   125→   125→
+   126→   126→
+   127→   127→
+   128→   128→
+   129→   129→GROUP C
+   130→   130→
+   131→   131→
+   132→   132→Brazil
+   133→   133→Final squad was announced May 18
+   134→   134→
+   135→   135→Goalkeepers: Alisson (Liverpool), Éderson (Fenerbahce), Weverton (Grêmio)
+   136→   136→
+   137→   137→Defenders: Alex Sandro (Flamengo), Bremer (Juventus), Danilo (Flamengo), Douglas Santos (Zenit St. Petersburg), Gabriel Magalhães (Arsenal), Léo Pereira (Flamengo), Marquinhos (Paris Saint-Germain), Roger Ibañez (Al Ahli), Wesley (AS Roma)
+   138→   138→
+   139→   139→Midfielders: Bruno Guimarães (Newcastle United), Casemiro (Manchester United), Danilo Santos (Botafogo), Fabinho (Al Ittihad), Lucas Paquetá (Flamengo)
+   140→   140→
+   141→   141→Forwards: Endrick (Lyon), Gabriel Martinelli (Arsenal), Igor Thiago (Brentford), Luiz Henrique (Zenit St. Petersburg), Matheus Cunha (Manchester United), Neymar (Santos), Raphinha (Barcelona), Rayan (Bournemouth), Vinícius Júnior (Real Madrid)
+   142→   142→
+   143→   143→Manager: Carlo Ancelotti
+   144→   144→
+   145→   145→
+   146→   146→
+   147→   147→Morocco
+   148→   148→Final roster announced May 26
+   149→   149→
+   150→   150→Goalkeepers: Yassine Bounou (Al Hilal), Munir El Kajoui (RS Berkane), Reda Tagnaouti (AS Far)
+   151→   151→
+   152→   152→Defenders: Noussair Mazraoui (Manchester United), Anass Salah-Eddine (PSV Eindhoven), Youssef Belammari (Al Ahly), Achraf Hakimi (Paris Saint-Germain), Zakaria El Ouahdi (Racing Genk), Chadi Riad (Crystal Palace), Nayef Aguerd (Marseille), Redouane Halhal (KV Mechelen), Issa Diop (Fulham)
+   153→   153→
+   154→   154→Midfielders: Samir El Mourabet (Strasbourg), Ayyoub Bouaddi (Lille), Neil El Aynaoui (AS Roma), Sofyan Amrabat (Real Betis), Azzedine Ounahi (Girona), Bilal El Khannouss (Stuttgart), Ismael Saibari (PSV Eindhoven)
+   155→   155→
+   156→   156→Forwards: Abde Ezzalzouli (Real Betis), Chemsdine Talbi (Sunderland), Soufiane Rahimi (Al Ain), Ayoub El Kaabi (Olympiacos), Brahim Díaz (Real Madrid), Gessime Yassine (Strasbourg), Ayoube Amaimouni (Eintracht Frankfurt)
+   157→   157→
+   158→   158→Manager: Mohamed Ouahbi
+   159→   159→
+   160→   160→
+   161→   161→
+   162→   162→Haiti
+   163→   163→Final squad was announced May 15
+   164→   164→
+   165→   165→Goalkeepers: Johny Placide (Bastia), Alexandre Pierre (Sochaux), Josue Duverger (Cosmos Koblenz)
+   166→   166→
+   167→   167→Defenders: Carlens Arcus (Angers), Wilguens Paugain (Zulte Waregem), Duke Lacroix (Colorado Springs Switchbacks), Martin Expérience (Nancy), Jean-Kévin Duverne (Gent), Ricardo Adé (LDU Quito), Hannes Delcroix (Lugano), Keeto Thermoncy (Young Boys)
+   168→   168→
+   169→   169→Midfielders: Carl Fred Sainté (El Paso Locomotive), Leverton Pierre (Vizela), Danley Jean Jacques (Philadelphia Union), Jean-Ricner Bellegarde (Wolverhampton Wanderers), Woodensky Pierre (Violette), Dominique Simon (FC Tatran Prešov)
+   170→   170→
+   171→   171→Forwards: Don Deedson Louicius (FC Dallas), Josué Casimir (Auxerre), Derrick Etienne (Toronto FC), Ruben Providence (Almere), Duckens Nazon (Esteghlal), Frantzdy Pierrot (Çaykur Rizespor), Wilson Isidor (Sunderland), Yassin Fortuné (Vizela), Lenny Joseph (Ferencváros)
+   172→   172→
+   173→   173→Manager: Sebastien Migne
+   174→   174→
+   175→   175→
+   176→   176→
+   177→   177→Scotland
+   178→   178→Final squad was announced May 19
+   179→   179→
+   180→   180→Goalkeepers: Craig Gordon (Hearts), Angus Gunn (Nottingham Forest), Liam Kelly (Rangers)
+   181→   181→
+   182→   182→Defenders: Grant Hanley (Hibernian), Jack Hendry (Al Etiffaq), Aaron Hickey (Brentford), Dom Hyam (Wrexham), Scott McKenna (Dinamo Zagreb), Nathan Patterson (Everton), Anthony Ralston (Celtic), Andy Robertson (Liverpool), John Souttar (Rangers), Kieran Tierney (Celtic)
+   183→   183→
+   184→   184→Midfielders: Ryan Christie (Bournemouth), Finlay Curtis (Kilmarnock), Lewis Ferguson (Bologna), Ben Gannon-Doak (Bournemouth), Billy Gilmour (Napoli), John McGinn (Aston Villa), Kenny McLean (Norwich), Scott McTominay (Napoli)
+   185→   185→
+   186→   186→Forwards: Ché Adams (Torino), Lyndon Dykes (Charlton Athletic), George Hirst (Ipswich), Lawrence Shankland (Hearts), Ross Stewart (Southampton)
+   187→   187→
+   188→   188→Manager: Steve Clarke
+   189→   189→
+   190→   190→
+   191→   191→
+   192→   192→
+   193→   193→GROUP D
+   194→   194→
+   195→   195→
+   196→   196→United States
+   197→   197→Final squad announced on May 26
+   198→   198→
+   199→   199→Goalkeepers: Chris Brady (Chicago Fire), Matt Freese (New York City FC), Matt Turner (New England Revolution)
+   200→   200→
+   201→   201→Defenders: Max Arfsten (Columbus Crew), Sergiño Dest (PSV Eindhoven), Alex Freeman (Villarreal), Mark McKenzie (Toulouse), Tim Ream (Charlotte FC), Chris Richards (Crystal Palace), Antonee Robinson (Fulham), Miles Robinson (FC Cincinnati), Joe Scally (Borussia Mönchengladbach), Auston Trusty (Celtic)
+   202→   202→
+   203→   203→Midfielders: Tyler Adams (AFC Bournemouth, Sebastian Berhalter (Vancouver Whitecaps), Weston McKennie (Juventus), Cristian Roldan (Seattle Sounders), Brenden Aaronson (Leeds United), Malik Tillman (Bayer Leverkusen), Tim Weah (Marseille), Alejandro Zendejas (Club América)
+   204→   204→
+   205→   205→Forwards: Christian Pulisic (AC Milan), Gio Reyna (Borussia Mönchengladbach), Folarin Balogun (AS Monaco), Ricardo Pepi (PSV Eindhoven), Haji Wright (Coventry City)
+   206→   206→
+   207→   207→Manager: Mauricio Pochettino
+   208→   208→
+   209→   209→
+   210→   210→
+   211→   211→Australia
+   212→   212→Final squad was named on May 31.
+   213→   213→
+   214→   214→Goalkeepers: Mathew Ryan (Levante), Paul Izzo (Randers FC), Patrick Beach (Melbourne City)
+   215→   215→
+   216→   216→Defenders: Jordan Bos (Feyenoord Rotterdam), Aziz Behich (Melbourne City), Harry Souttar (Leicester City), Alessandro Circati (Parma), Lucas Herrington (Colorado Rapids), Cameron Burgess (Swansea City), Kai Trewin (New York City FC), Milos Degenek (Apoel Nicosia), Jason Geria (Albirex Niigata), Jacob Italiano (Grazer AK)
+   217→   217→
+   218→   218→Midfielders: Jackson Irvine (St. Pauli), Aiden O'Neill (New York City FC), Paul Okon Jr (Sydney FC), Cameron Devlin (Heart of Midlothian)
+   219→   219→
+   220→   220→Forwards: Connor Metcalfe (St. Pauli), Mathew Leckie (Melbourne City), Nishan Velupillay (Melbourne Victory), Cristian Volpato (Sassuolo), Nestory Irankunda (Watford), Awer Mabil (Castellón), Ajdin Hrustic (Heracles Almelo), Mohamed Toure (Norwich City), Tete Yengi (Machida Zelvia)
+   221→   221→
+   222→   222→Manager: Tony Popovic
+   223→   223→
+   224→   224→
+   225→   225→
+   226→   226→Paraguay
+   227→   227→Final roster announced on June 1
+   228→   228→
+   229→   229→Goalkeepers: Roberto Fernández (Cerro Porteño), Orlando Gill (San Lorenzo), Gastón Olveira (Olimpia),
+   230→   230→
+   231→   231→Defenders: Gustavo Gómez (Palmeiras), Júnior Alonso (Atletico Mineiro), Fabián Balbuena (Gremio), Omar Alderete (Sunderland), Juan Caceres (Dynamo Moscow), Jose Canale (Lanus), Alexandro Maidana (Talleres), Gustavo Velázquez (Cerro Porteño)
+   232→   232→
+   233→   233→Midfielders: Miguel Almirón (Atlanta United), Kaku (Al Ain), Andrés Cubas (Vancouver Whitecaps), Ramón Sosa (Palmeiras), Diego Gómez (Brighton & Hove Albion), Damián Bobadilla (São Paulo), Braian Ojeda (Orlando City), Matías Galarza (Atlanta United), Maurício (Palmeiras)
+   234→   234→
+   235→   235→Forwards: Antonio Sanabria (Cremonese), Julio Enciso (Strasbourg), Gabriel Ávalos (Independiente), Alex Arce (Independiente Rivadavia), Isidro Pitta (Red Bull Bragantino), Gustavo Caballero (Portsmouth)
+   236→   236→
+   237→   237→Manager: Gustavo Alfaro
+   238→   238→
+   239→   239→
+   240→   240→
+   241→   241→Türkiye
+   242→   242→Final roster announced on June 2
+   243→   243→
+   244→   244→Goalkeepers: Ugurcan Cakir (Galatasaray), Mert Gunok (Fenerbahce), Altay Bayindir (Man United)
+   245→   245→
+   246→   246→Defenders: Merih Demiral (Al-Ahli), Zeki Celik (AS Roma), Caglar Soyuncu (Fenerbahce), Mert Muldur (Fenerbahce), Ferdi Kadioglu (Brighton & Hove Albion), Ozan Kabak (TSG Hoffenheim), Abdulkerim Bardakci (Galatasaray), Eren Elmali (Galatasaray), Samet Akaydin (Caykur Rizesport)
+   247→   247→
+   248→   248→Midfielders: Hakan Calhanoglou (Inter Milan, Kaan Ayhan (Galatasaray), Orkun Kokcu (Besiktas), Ismail Yuksek (Fenerbahce), Salih Ozcan (Borussia Dortmund)
+   249→   249→
+   250→   250→Forwards: Kerem Akturkoglu (Fenerbahce), Irfan Can Kahveci (Kasimpasa), Baris Apler Yilmaz (Galatasaray), Arda Guler (Real Madrid), Kenan Yildiz (Juventus), Yunus Akgun (Galatasaray), Oguz Aydin (Fenerbahce), Deniz Gul (Porto), Can Uzun (Eintracht Frankfurt)
+   251→   251→
+   252→   252→Manager: Vincenzo Montella
+   253→   253→
+   254→   254→
+   255→   255→
+   256→   256→
+   257→   257→GROUP E
+   258→   258→
+   259→   259→
+   260→   260→Germany
+   261→   261→Roster announced on May 21
+   262→   262→
+   263→   263→Goalkeepers: Oliver Baumann (Hoffenheim), Manuel Neuer (Bayern Munich), Alexander Nübel (Stuttgart)
+   264→   264→
+   265→   265→Defenders: Waldemar Anton (Borussia Dortmund), Nathaniel Brown (Eintracht Frankfurt), David Raum (RB Leipzig), Antonio Rüdiger (Real Madrid), Nico Schlotterbeck (Borussia Dortmund), Jonathan Tah (Bayern Munich), Malick Thiaw (Newcastle)
+   266→   266→
+   267→   267→Midfielders: Pascal Gross (Brighton), Joshua Kimmich (Bayern Munich), Felix Nmecha (Borussia Dortmund), Aleksandar Pavlovic (Bayern Munich), Angelo Stiller (Stuttgart), Leon Goretzka (Bayern Munich), Florian Wirtz (Liverpool), Jamie Leweling (Stuttgart)
+   268→   268→
+   269→   269→Forwards: Maximilian Beier (Borussia Dortmund), Kai Havertz (Arsenal), Lennart Karl (Bayern Munich), Jamal Musiala (Bayern Munich), Leroy Sané (Galatasaray), Deniz Undav (Stuttgart), Nick Woltemade (Newcastle)
+   270→   270→
+   271→   271→Manager: Julian Nagelsmann
+   272→   272→
+   273→   273→
+   274→   274→
+   275→   275→Curacao
+   276→   276→Roster announced May 18
+   277→   277→
+   278→   278→Goalkeepers: Eloy Room (Miami FC), Tyrick Bodak (Telstar), Trevor Doornbusch (VVV Venlo)
+   279→   279→
+   280→   280→Defenders: Riechedly Bazoer (Konyaspor), Joshua Brenet (Kayserispor), Roshon van Eijma (RKC Waalwijk), Sherel Floranus (PEC Zwolle), Deveron Fonville (NEC Nijmegen), Jurien Gaari (Abha), Armando Obispo (PSV Eindhoven), Shurandy Sambo (Sparta Rotterdam)
+   281→   281→
+   282→   282→Midfielders: Juninho Bacuna (Volendam), Leandro Bacuna (Igdir), Livano Comenencia (Zurich), Kevin Felida (Den Bosch), Ar'jany Martha (Rotherham United), Tyrese Noslin (Telstar), Godfried Roemeratoe (RKC Waalwijk)
+   283→   283→
+   284→   284→Forwards: Jeremy Antonisse (Kifisia), Tahith Chong (Sheffield United), Kenji Gorre (Maccabi Haifa), Sontje Hansen (Middlesbrough), Gervane Kastaneer (Terengganu), Brandley Kuwas (Volendam), Jurgen Locadia (Miami FC), Jearl Margaritha (Beveren)
+   285→   285→
+   286→   286→Manager: Dick Advocaat
+   287→   287→
+   288→   288→
+   289→   289→
+   290→   290→Ivory Coast
+   291→   291→Final squad was announced May 15
+   292→   292→
+   293→   293→Goalkeepers: Yahia Fofana (Rizespor), Mohamed Koné (Charleroi), Alban Lafont (Panathinaikos)
+   294→   294→
+   295→   295→Defenders: Emmanuel Agbadou (Beşiktaş), Clément Akpa (AJ Auxerre), Ousmane Diomande (Sporting CP), Guela Doué (Strasbourg), Ghislain Konan (Gil Vicente), Odilon Kossounou (Atalanta), Evan Ndicka (AS Roma), Wilfried Singo (Galatasaray)
+   296→   296→
+   297→   297→Midfielders: Seko Fofana (Porto), Parfait Guiagon (Charleroi), Franck Kessié (Al Ahli), Christ Inao Oulaï (Trabzonspor), Ibrahim Sangaré (Nottingham Forest), Jean Michaël Seri (NK Maribor)
+   298→   298→
+   299→   299→Forwards: Simon Adingra (AS Monaco), Ange-Yoan Bonny (Internazionale), Amad Diallo (Manchester United), Oumar Diakité (Cercle Brugge), Yan Diomande (RB Leipzig), Evann Guessand (Aston Villa), Nicolas Pépé (Villarreal), Bazoumana Touré (Hoffenheim), Elye Wahi (Nice)
+   300→   300→
+   301→   301→Manager: Emerse Faé
+   302→   302→
+   303→   303→
+   304→   304→
+   305→   305→Ecuador
+   306→   306→Final squad announced on May 29.
+   307→   307→
+   308→   308→Goalkeepers: Hernán Galíndez (Huracan), Moisés Ramírez (AE Kifisias), Gonzalo Valle (LDU Quito)
+   309→   309→
+   310→   310→Defenders: Willian Pacho (Paris Saint-Germain), Piero Hincapié (Arsenal), Joel Ordóñez (Club Brugge), Félix Torres (Internacional), Pervis Estupiñán (AC Milan), Yaimar Medina (Racing Genk), Ángelo Preciado (Atlético Mineiro), Jackson Porozo (Club Tijuana)
+   311→   311→
+   312→   312→Midfielders: Alan Minda (Atlético Mineiro), Moisés Caicedo (Chelsea), Jordy Alcivar (Independiente del Valle), Denil Castillo (FC Midtjylland), John Yeboah (Venezia), Alan Franco (Atlético Mineiro), Pedro Vite (Pumas UNAM), Kendry Páez (River Plate), Nilson Angulo (Sunderland), Gonzalo Plata (Flamengo)
+   313→   313→
+   314→   314→Forwards: Kevin Rodríguez (Union St.-Gilloise), Anthony Valencia (Antwerp), Enner Valencia (Pachuca), Jordy Caicedo (Huracán), Jeremy Arévalo (VfB Stuttgart)
+   315→   315→
+   316→   316→Manager: Sebastián Beccacece
+   317→   317→
+   318→   318→
+   319→   319→
+   320→   320→
+   321→   321→GROUP F
+   322→   322→
+   323→   323→
+   324→   324→Netherlands
+   325→   325→Roster announced on May 27.
+   326→   326→
+   327→   327→Goalkeepers: Mark Flekken (Bayer Leverkusen), Robin Roefs (Sunderland), Bart Verbruggen (Brighton)
+   328→   328→
+   329→   329→Defenders: Nathan Aké (Manchester City), Denzel Dumfries (Inter Milan), Jorrel Hato (Chelsea), Jurriën Timber (Arsenal), Jan Paul van Hecke (Brighton), Micky van de Ven (Tottenham), Virgil van Dijk (Liverpool)
+   330→   330→
+   331→   331→Midfielders: Frenkie de Jong (Barcelona), Marten de Roon (Atalanta), Ryan Gravenberch (Liverpool), Teun Koopmeiners (Juventus), Tijjani Reijnders (Manchester City), Guus Til (PSV), Quinten Timber (Marseille), Mats Wieffer (Brighton)
+   332→   332→
+   333→   333→Forwards: Brian Brobbey (Sunderland), Memphis Depay (Corinthians), Cody Gakpo (Liverpool), Justin Kluivert (Bournemouth), Noa Lang (Galatasaray), Donyell Malen (Roma), Crysencio Summerville (West Ham), Wout Weghorst (Ajax)
+   334→   334→
+   335→   335→Manager: Ronald Koeman
+   336→   336→
+   337→   337→
+   338→   338→
+   339→   339→Japan
+   340→   340→Final squad was announced May 15
+   341→   341→
+   342→   342→Goalkeepers: Zion Suzuki (Parma), Keisuke Osako (Sanfrecce Hiroshima), Tomoki Hayakawa (Kashima Antlers)
+   343→   343→
+   344→   344→Defenders: Yūto Nagatomo (FC Tokyo), Shogo Taniguchi (Sint-Truiden), Ko Itakura (Ajax), Tsuyoshi Watanabe (Feyenoord), Takehiro Tomiyasu (Ajax), Hiroki Ito (Bayern Munich), Ayumu Seko (Le Havre), Yukinari Sugawara (Werder Bremen)
+   345→   345→
+   346→   346→Midfielders: Junnosuke Suzuki (Copenhagen), Wataru Endo (Liverpool), Junya Ito (Genk), Daichi Kamada (Crystal Palace), Ritsu Doan (Eintracht Frankfurt), Ao Tanaka (Leeds United), Keito Nakamura (Reims), Kaishu Sano (Mainz), Takefusa Kubo (Real Sociedad), Yuito Suzuki (Freiburg)
+   347→   347→
+   348→   348→Forwards: Koki Ogawa (NEC Nijmegen), Daizen Maeda (Celtic), Ayase Ueda (Feyenoord), Kento Shiogai (VfL Wolfsburg), Keisuke Goto (Sint-Truiden)
+   349→   349→
+   350→   350→Manager: Hajime Moriyasu
+   351→   351→
+   352→   352→
+   353→   353→
+   354→   354→Sweden
+   355→   355→Final squad was announced May 12
+   356→   356→
+   357→   357→Goalkeepers: Viktor Johansson (Stoke City), Kristoffer Nordfeldt (AIK), Jacob Widell Zetterstrom (Derby County)
+   358→   358→
+   359→   359→Defenders: Hjalmar Ekdal (Burnley), Gabriel Gudmundsson (Leeds United), Isak Hien (Atalanta), Emil Holm (Juventus), Gustaf Lagerbielke (Braga), Victor Lindelöf (Aston Villa), Erik Smith (St. Pauli), Carl Starfelt (Celta Vigo), Elliot Stroud (Mjallby), Daniel Svensson (Borussia Dortmund)
+   360→   360→
+   361→   361→Midfielders: Taha Ali (Malmo), Yasin Ayari (Brighton), Lucas Bergvall (Tottenham), Jesper Karlström (Udinese), Ken Sema (Pafos), Mattias Svanberg (Wolfsburg), Besfort Zeneli (Union St-Gilloise)
+   362→   362→
+   363→   363→Forwards: Alexander Bernhardsson (Holstein Kiel), Anthony Elanga (Newcastle United), Viktor Gyökeres (Arsenal), Alexander Isak (Liverpool), Gustaf Nilsson (Club Brugge), Benjamin Nygren (Celtic)
+   364→   364→
+   365→   365→Manager: Graham Potter
+   366→   366→
+   367→   367→
+   368→   368→
+   369→   369→Tunisia
+   370→   370→Final squad was announced May 15
+   371→   371→
+   372→   372→Goalkeepers: Aymen Dahmen (CS Sfaxien), Sabri Ben Hessen (Étoile du Sahel), Abdelmouhib Chamakh (Club Africain)
+   373→   373→
+   374→   374→Defenders: Montassar Talbi (Lorient), Dylan Bronn (Servette), Omar Rekik (Maribor), Yan Valery (Young Boys), Ali Abdi (Nice), Moutaz Neffati (IFK Norrköping), Raed Chikhaoui (US Monastir), Adam Arous (Kasımpaşa), Mohamed Amine Ben Hamida (Espérance de Tunis)
+   375→   375→
+   376→   376→Midfielders: Ellyes Skhiri (Eintracht Frankfurt), Hannibal Mejbri (Burnley), Anis Ben Slimane (Norwich City), Hadj Mahmoud (Lugano), Rani Khedira (Union Berlin), Mortadha Ben Ouanes (Kasımpaşa)
+   377→   377→
+   378→   378→Forwards: Elias Achouri (Copenhagen), Ismaël Gharbi (Augsburg), Elias Saad (Hannover 96), Sebastian Tounekti (Celtic), Firas Chaouat (Club Africain), Khalil Ayari (Paris Saint-Germain), Hazem Mastouri (Dynamo Makhachkala), Rayan Elloumi (Vancouver Whitecaps), Elias Saad (Hannover 96)
+   379→   379→
+   380→   380→Manager: Sabri Lamouchi
+   381→   381→
+   382→   382→
+   383→   383→
+   384→   384→
+   385→   385→GROUP G
+   386→   386→
+   387→   387→
+   388→   388→Belgium
+   389→   389→Final squad was announced May 15
+   390→   390→
+   391→   391→Goalkeepers: Thibaut Courtois (Real Madrid), Senne Lammens (Manchester United), Mike Penders (Chelsea)
+   392→   392→
+   393→   393→Defenders: Timothy Castagne (Fulham), Zeno Debast (Sporting CP), Maxim De Cuyper (Brighton & Hove Albion), Koni De Winter (AC Milan), Brandon Mechele (Club Brugge), Thomas Meunier (Lille), Nathan Ngoy (Lille), Joaquin Seys (Club Brugge), Arthur Theate (Eintracht Frankfurt),
+   394→   394→
+   395→   395→Midfielders: Kevin De Bruyne (Napoli), Amadou Onana (Aston Villa), Nicolas Raskin (Rangers), Youri Tielemans (Aston Villa), Hans Vanaken (Club Brugge), Axel Witsel (Girona)
+   396→   396→
+   397→   397→Forwards: Charles De Ketelaere (Atalanta), Jérémy Doku (Manchester City), Matias Fernandez-Pardo (Lille), Romelu Lukaku (Napoli), Dodi Lukebakio (Benfica), Diego Moreira (Strasbourg), Alexis Saelemaekers (AC Milan), Leandro Trossard (Arsenal)
+   398→   398→
+   399→   399→Manager: Rudi Garcia
+   400→   400→
+   401→   401→
+   402→   402→
+   403→   403→Egypt
+   404→   404→Final squad announced on May 29
+   405→   405→
+   406→   406→Goalkeepers: Mohamed El Shenawy (Al Ahly), Mostafa Shobeir (Al Ahly), El Mahdy Soliman (Zamalek), Mohamed Alaa (El Gouna)
+   407→   407→
+   408→   408→Defenders: Mohamed Hany (Al Ahly), Tarek Alaa (Zamalek), Hamdy Fathy (Al Wakrah), Ramy Rabia (Al Ain), Yasser Ibrahim (Al Ahly), Hossam Abdelmaguid (Zamalek), Mohamed Abdelmonem (Nice), Ahmed Fatouh (Zamalek), Karim Hafez (Pyramids)
+   409→   409→
+   410→   410→Midfielders: Marwan Attia (Al Ahly), Mohanad Lasheen (Pyramids), Nabil Emad (Al Najma), Mahmoud Saber (Zed), Ahmed Zizo (Al Ahly), Emam Ashour (Al Ahly), Mostafa Ziko (Pyramids), Mahmoud Trezeguet (Al Ahly), Ibrahim Adel (Nordsjaelland), Haissem Hassan (Real Oviedo)
+   411→   411→
+   412→   412→Forwards: Omar Marmoush (Manchester City), Mohamed Salah (Liverpool), Hamza Abdelkarim (Barcelona B)
+   413→   413→
+   414→   414→Manager: Hossam Hassan
+   415→   415→
+   416→   416→
+   417→   417→
+   418→   418→Iran
+   419→   419→Final roster announced on June 1
+   420→   420→
+   421→   421→Goalkeepers: Alireza Beiranvand (Tractor), Hossein Hosseini (Sepahan), Payam Niazmand (Persepolis)
+   422→   422→
+   423→   423→Defenders: Danial Eiri (Malavan), Ehsan Hajsafi (Sepahan), Saleh Hardani (Esteghlal), Hossein Kanaani (Persepolis), Shoka Khalilzadeh (Tractor), Milad Mohammadi (Persepolis), Ali Nemati Omid Noorafkan (Foolad), Ramin Rezaeian (Foolad)
+   424→   424→
+   425→   425→Midfielders: Rouzbeh Cheshmi (Esteghlal), Saeid Ezatolahi (Shabab Al-Ahli), Mehdi Ghaedi (Al-Nasr), Saman Ghoddos (Kalba), Mohammad Ghorbani (Al-Wahda), Alireza Jahanbakhsh (Dender), Mohammad Mohebi (Rostovv), Amir Mohammad Razzaghinia (Esteghlal), Mehdi Torabi (Tractor), Aria Yousefi (Sepahan)
+   426→   426→
+   427→   427→Forwards: Ali Alipour (Persepolis), Dennis Dargahi (Standard Liege), Amirhossein Hosseinzadeh (Tractor), Amirhossein Mahmoudi (Persepolis), Mehdi Taremi (Olympiacos)
+   428→   428→
+   429→   429→Manager: Amir Ghalenoei
+   430→   430→
+   431→   431→
+   432→   432→
+   433→   433→New Zealand
+   434→   434→Final squad was announced on May 14.
+   435→   435→
+   436→   436→Goalkeepers: Max Crocombe (Millwall), Alex Paulsen (Lechia Gdańsk), Michael Woud (Auckland FC)
+   437→   437→
+   438→   438→Defenders: Tim Payne (Wellington Phoenix), Francis De Vries (Auckland FC), Tyler Bindon (Nottingham Forest), Michael Boxall (Minnesota United), Liberato Cacace (Wrexham), Nando Pijnaker (Auckland FC), Finn Surman (Portland Timbers), Callan Elliot (Auckland FC), Tommy Smith (Braintree Town)
+   439→   439→
+   440→   440→Midfielders: Joe Bell (Viking FK), Matt Garbett (Peterborough United), Marko Stamenic (Swansea City), Sarpreet Singh (Wellington Phoenix), Alex Rufer (Wellington Phoenix), Ryan Thomas (PEC Zwolle)
+   441→   441→
+   442→   442→Forwards: Chris Wood (Nottingham Forest), Eli Just (Motherwell), Kosta Barbarouses (Western Sydney Wanderers), Ben Waine (Port Vale), Ben Old (Saint-Étienne), Callum McCowatt (Silkeborg IF), Jesse Randall (Auckland FC), Lachlan Bayliss (Newcastle Jets)
+   443→   443→
+   444→   444→Manager: Darren Bazeley
+   445→   445→
+   446→   446→
+   447→   447→
+   448→   448→
+   449→   449→GROUP H
+   450→   450→
+   451→   451→
+   452→   452→Spain
+   453→   453→Roster announced on May 25
+   454→   454→
+   455→   455→Goalkeepers: Unai Simón (Athletic Club), David Raya (Arsenal), Joan García (Barcelona)
+   456→   456→
+   457→   457→Defenders: Marc Cucurella (Chelsea), Pau Cubarsí (Barcelona), Aymeric Laporte (Athletic Club), Álex Grimaldo (Bayer Leverkusen), Pedro Porro (Tottenham Hotspur), Eric García (Barcelona), Marcos Llorente (Atlético Madrid), Marc Pubill (Atlético Madrid)
+   458→   458→
+   459→   459→Midfielders: Gavi (Barcelona), Rodri (Manchester City), Pedri (Barcelona), Martín Zubimendi (Arsenal), Fabián Ruiz (PSG), Álex Baena (Atlético Madrid), Mikel Merino (Arsenal)
+   460→   460→
+   461→   461→Forwards: Lamine Yamal (Barcelona), Nico Williams (Athletic Club), Dani Olmo (Barcelona), Ferran Torres (Barcelona), Mikel Oyarzabal (Real Sociedad), Yéremy Pino (Crystal Palace), Borja Iglesias (Celta Vigo), Víctor Muñoz (Osasuna)
+   462→   462→
+   463→   463→Manager: Luis de la Fuente
+   464→   464→
+   465→   465→
+   466→   466→
+   467→   467→Cape Verde
+   468→   468→Roster announced on May 18
+   469→   469→
+   470→   470→Goalkeepers: Vozinha (Chaves), Marcio Rosa (Montana), CJ dos Santos (San Diego FC)
+   471→   471→
+   472→   472→Defenders: Steven Moreira (Columbus Crew), Wagner Pina (Trabzonspor), Joao Paulo (FCSB), Sidny Lopes Cabral (Benfica), Logan Costa (Villarreal), Pico (Shamrock Rovers), Kelvin Pires (SJK), Stopira (Torreense), Diney (Al Bataeh)
+   473→   473→
+   474→   474→Midfielders: Jamiro Monteiro (PEC Zwolle), Telmo Arcanjo (Vitoria Guimaraes), Yannick Semedo (Farense), Laros Duarte (Puskas Akademia), Deroy Duarte (Ludogorets Razgrad), Kevin Pina (Krasnodar)
+   475→   475→
+   476→   476→Forwards: Ryan Mendes (Igdir), Willy Semedo (Omonia), Garry Rodrigues (Apollon Limassol), Jovane Cabral (Estrela Amadora), Nuno da Costa (Istanbul Basaksehir), Dailon Livramento (Casa Pia), Gilson Benchimol (Akron Tolyatti), Helio Varela (Maccabi Tel Aviv)
+   477→   477→
+   478→   478→Manager: Bubista
+   479→   479→
+   480→   480→
+   481→   481→
+   482→   482→Uruguay
+   483→   483→Roster announced on May 31
+   484→   484→
+   485→   485→Goalkeepers: Fernando Muslera (Estudiantes de La Plata), Sergio Rochet (Internacional de Porto Alegre), Santiago Mele (Monterrey)
+   486→   486→
+   487→   487→Defenders: Ronald Araújo (Barcelona), José María Giménez (Atlético Madrid), Santiago Bueno (Wolverhampton Wanderers), Sebastián Cáceres (América), Mathías Olivera (Napoli), Guillermo Varela (Flamengo), Matías Viña (River Plate), Joaquín Piquerez (Palmeiras), Juan Manuel Sanabria (Real Salt Lake)
+   488→   488→
+   489→   489→Midfielders: Federico Valverde (Real Madrid), Rodrigo Bentancur (Tottenham Hotspur), Manuel Ugarte (Manchester United), Emiliano Martínez (Palmeiras), Rodrigo Zalazar (Sporting CP), Giorgian De Arrascaeta (Flamengo), Nicolás De La Cruz (Flamengo), Agustín Canobbio (Fluminense), Maximiliano Araújo (Sporting CP), Brian Rodríguez (América), Facundo Pellistri (Panathinaikos)
+   490→   490→
+   491→   491→Forwards: Darwin Núñez (Al Hilal), Federico Viñas (Real Oviedo), Rodrigo Aguirre (Tigres)
+   492→   492→
+   493→   493→Manager: Marcelo Bielsa
+   494→   494→
+   495→   495→
+   496→   496→
+   497→   497→Saudi Arabia
+   498→   498→Roster announced on June 1
+   499→   499→
+   500→   500→Goalkeepers: Mohammed Al Owais (Al Ula), Nawaf Al Aqidi (Al Nassr), Ahmed Al Kassar (Al Qadsiah)
+   501→   501→
+   502→   502→Defenders: Abdulelah Al Amri (Al Nassr), Hassan Tambakti (Al Hilal), Jehad Thikri (Al Qadsiah), Ali Lajami (Al Hilal), Hassan Kadesh (Al Ittihad), Saud Abdulhamid (Lens), Mohammed Abu Al Shamat (Al Qadsiah), Ali Majrashi (Al Ahli), Moteb Al Harbi (Al Hilal), Nawaf Boushal (Al Nassr), Sultan Al-Ghannam (Al Nassr)
+   503→   503→
+   504→   504→Midfielders: Mohammed Kanno (Al Hilal), Abdullah Al Khaibari (Al Nassr), Ziyad Al Johani (Al Ahli), Nasser Al Dawsari (Al Hilal), Musab Al Juwayr (Al Qadsiah), Alaa Al Hajji (Neom), Salem Al Dawsari (Al Hilal), Khalid Al Ghannam (Al Ettifaq), Ayman Yahya (Al Nassr)
+   505→   505→
+   506→   506→Forwards: Firas Al Buraikan (Al Ahli), Saleh Al Shehri (Al Ittihad), Abdullah Al Hamdan (Al Nassr)
+   507→   507→
+   508→   508→Manager: Georgios Donis
+   509→   509→
+   510→   510→
+   511→   511→
+   512→   512→
+   513→   513→GROUP I
+   514→   514→
+   515→   515→
+   516→   516→France
+   517→   517→Final squad was announced May 14
+   518→   518→
+   519→   519→Goalkeepers: Mike Maignan (AC Milan), Robin Risser (Lens), Brice Samba (Rennes)
+   520→   520→
+   521→   521→Defenders: Lucas Digne (Aston Villa), Malo Gusto (Chelsea), Lucas Hernández (Paris Saint-Germain), Theo Hernández (Al Hilal), Ibrahima Konaté (Liverpool), Jules Koundé (Barcelona), Maxence Lacroix (Crystal Palace), William Saliba (Arsenal), Dayot Upamecano (Bayern Munich)
+   522→   522→
+   523→   523→Midfielders: N'Golo Kanté (Fenerbahçe), Manu Koné (AS Roma), Adrien Rabiot (AC Milan), Aurélien Tchouaméni (Real Madrid), Warren Zaïre-Emery (Paris Saint-Germain)
+   524→   524→
+   525→   525→Forwards: Maghnes Akliouche (AS Monaco), Bradley Barcola (Paris Saint-Germain), Rayan Cherki (Manchester City), Ousmane Dembélé (Paris Saint-Germain), Désiré Doué (Paris Saint-Germain), Jean-Philippe Mateta (Crystal Palace), Kylian Mbappé (Real Madrid), Michael Olise (Bayern Munich), Marcus Thuram (Internazionale)
+   526→   526→
+   527→   527→Manager: Didier Deschamps
+   528→   528→
+   529→   529→
+   530→   530→
+   531→   531→Senegal
+   532→   532→Final squad announced on June 1.
+   533→   533→
+   534→   534→Goalkeepers: Édouard Mendy (Al Ahli), Mory Diaw (Le Havre AC), Yehvann Diouf (Nice)
+   535→   535→
+   536→   536→Defenders: Krépin Diatta (AS Monaco), Antoine Mendy (Nice), Kalidou Koulibaly (Al Hilal), El Hadji Malick Diouf (West Ham United), Mamadou Sarr (Chelsea), Moussa Niakhaté (Lyon), Abdoulaye Seck (Maccabi Haifa), Ismail Jakobs (Galatasaray)
+   537→   537→
+   538→   538→Midfielders: Idrissa Gana Gueye (Everton), Pape Gueye (Villarreal), Lamine Camara (AS Monaco), Habib Diarra (Sunderland), Pathé Ciss (Rayo Vallecano), Pape Matar Sarr (Tottenham Hotspur), Bara Sapoko Ndiaye (Bayern Munich)
+   539→   539→
+   540→   540→Forwards: Sadio Mané (Al Nassr), Ismaïla Sarr (Crystal Palace), Iliman Ndiaye (Everton), Assane Diao (Como), Ibrahim Mbaye (Paris Saint-Germian), Nicolas Jackson (Chelsea), Bamba Dieng (Lorient), Cherif Ndiaye (Samsunspor)
+   541→   541→
+   542→   542→Manager: Pape Thiaw
+   543→   543→
+   544→   544→
+   545→   545→
+   546→   546→Iraq
+   547→   547→Roster announced on June 1.
+   548→   548→
+   549→   549→Goalkeepers: Fahad Talib (Al-Talaba), Jalal Hassan (Al-Zawraa), Ahmed Basil (Al-Shorta)
+   550→   550→
+   551→   551→Defenders: Hussein Ali (Pogoń Szczecin), Manaf Younis (Al-Shorta), Zaid Tahseen (Pakhtakor), Rebin Sulaka (Port FC), Akam Hashem (Al-Zawraa), Merchas Doski (Viktoria Plzeň), Ahmed Yahya (Al-Shorta), Zaid Ismail (Al-Talaba), Frans Putros (Port FC), Mustafa Saadoon (Al-Shorta)
+   552→   552→
+   553→   553→Midfielders: Amir Al-Ammari (Cracovia), Kevin Yakob (AGF Aarhus), Zidane Iqbal (FC Utrecht), Aimar Sher (Sarpsborg 08), Ibrahim Bayesh (Al-Riyadh), Ahmed Qasim (Elfsborg), Youssef Amyn (Eintracht Braunschweig), Marko Farji (Strømsgodset)
+   554→   554→
+   555→   555→Forwards: Ali Jasim (Como), Ali Al-Hamadi (Ipswich Town), Ali Yousef (Al-Shorta), Aymen Hussein (Al-Khor), Mohanad Ali (Al-Shorta)
+   556→   556→
+   557→   557→Manager: Graham Arnold
+   558→   558→
+   559→   559→
+   560→   560→
+   561→   561→Norway
+   562→   562→Final squad was announced May 21
+   563→   563→
+   564→   564→Goalkeepers: Ørjan Nyland (Sevilla), Egil Selvik (Watford), Sander Tangvik (Hamburg SV)
+   565→   565→
+   566→   566→Defenders: Julian Ryerson (Borussia Dortmund), Kristoffer Ajer (Brentford), Leo Østigård (Genoa), David Møller Wolfe (Wolverhampton Wanderers), Marcus Pedersen (Torino), Torbjørn Heggem (Bologna), Fredrik André Bjørkan (Bodø/Glimt), Henrik Falchener (Viking), Sondre Langås (Derby County)
+   567→   567→
+   568→   568→Midfielders: Martin Ødegaard (Arsenal), Sander Berge (Fulham), Patrick Berg (Bodø/Glimt), Kristian Thorstvedt (Sassuolo), Morten Thorsby (Cremonese), Thelo Aasgaard (Rangers), Andreas Schjelderup (Benfica), Jens Petter Hauge (Bodø/Glimt), Fredrik Aursnes (Benfica), Oscar Bobb (Fulham), Antonio Nusa (RB Leipzig)
+   569→   569→
+   570→   570→Forwards: Erling Haaland (Manchester City), Alexander Sørloth (Atlético Madrid), Jørgen Strand Larsen (Crystal Palace)
+   571→   571→
+   572→   572→Manager: Stale Solbakken
+   573→   573→
+   574→   574→
+   575→   575→
+   576→   576→
+   577→   577→GROUP J
+   578→   578→
+   579→   579→
+   580→   580→Argentina
+   581→   581→Final roster announced on May 28
+   582→   582→
+   583→   583→Goalkeepers: Emiliano Martínez (Aston Villa), Gerónimo Rulli (Marseille), Juan Musso (Atlético Madrid)
+   584→   584→
+   585→   585→Defenders: Gonzalo Montiel (River Plate), Nahuel Molina (Atlético Madrid), Lisandro Martínez (Manchester United), Nicolás Otamendi (Benfica), Leonardo Balerdi (Marseille), Cristian Romero (Tottenham), Facundo Medina (Marseille), Nicolás Tagliafico (Lyon)
+   586→   586→
+   587→   587→Midfielders: Leandro Paredes (Boca Juniors), Rodrigo De Paul (Inter Miami), Exequiel Palacios (Bayer Leverkusen), Enzo Fernández (Chelsea), Alexis Mac Allister (Liverpool), Giovani Lo Celso (Real Betis), Valentín Barco (Strasbourg)
+   588→   588→
+   589→   589→Forwards: Lionel Messi (Inter Miami), Nico Paz (Como), Thiago Almada (Atlético Madrid), Nicolás González (Atletico Madrid), Giuliano Simeone (Atlético Madrid), Lautaro Martínez (Internazionale), Jose Manuel López (Palmeiras), Julián Álvarez (Atlético Madrid)
+   590→   590→
+   591→   591→Manager: Lionel Scaloni
+   592→   592→
+   593→   593→
+   594→   594→
+   595→   595→Algeria
+   596→   596→Roster announced on May 31
+   597→   597→
+   598→   598→Goalkeepers: Oussama Benbot (USM Alger), Melvin Masstil (Stade Nyonnaise), Luca Zidane (Granada)
+   599→   599→
+   600→   600→Defenders: Achraf Abada (USM Alger), Rayan Ait Nouri (Manchester City), Zinedine Belaid (JS Kabylie), Rafik Belghali (Verona), Ramy Bensebaini (Borussia Dortmund), Samir Chergui (Paris FC), Jaouen Hadjam (Young Boys), Aissa Mandi (Lille), Mohamed Amine Tougai (Esperance)
+   601→   601→
+   602→   602→Midfielders: Houssem Aouar (Al Ittihad), Nabil Bentaleb (Lille), Hicham Boudaoui (Nice), Fares Chaibi (Eintracht Frankfurt), Ibrahim Maza (Bayer Leverkusen), Yassine Titraoui (Charleroi), Ramiz Zerrouki (FC Twente)
+   603→   603→
+   604→   604→Forwards: Mohamed Amine Amoura (VfL Wolfsburg), Nadir Benbouali (Győri ETO), Adil Boulbina (Al Duhail), Fares Ghedjemis (Frosinone), Amine Gouiri (Marseille), Riyad Mahrez (Al Ahli), Anis Hadj Moussa (Feyenoord)
+   605→   605→
+   606→   606→Manager: Vladimir Petkovic
+   607→   607→
+   608→   608→
+   609→   609→
+   610→   610→Austria
+   611→   611→Roster announced May 18
+   612→   612→
+   613→   613→Goalkeepers: Alexander Schlager (RB Salzburg), Florian Wiegele (Viktoria Plzen), Patrick Pentz (Brondby)
+   614→   614→
+   615→   615→Defenders: David Affengruber (Elche), Kevin Danso (Tottehham), Stefan Posch (Mainz 05), David Alaba (Real Madrid), Philipp Lienhart (SC Freiburg), Philipp Mwene (Mainz 05), Alexander Prass (TSG Hoffenheim), Marco Friedl (Werder Bremen), Michael Svoboda (Venezia)
+   616→   616→
+   617→   617→Midfielders: Xaver Schlager (RB Leipzig), Nicolas Seiwald (RB Leipzig), Marcel Sabitzer (Borussia Dortmund), Florian Grillitsch (Braga), Carney Chukwuemeka (Borussia Dortmund), Romano Schmid (Werder Bremen), Christoph Baumgartner (RB Leipzig), Konrad Laimer (Bayern Munich), Patrick Wimmer (Wolfsburg), Paul Wanner (PSV Eindhoven), Alessandro Schopf (Wolfsberger AC)
+   618→   618→
+   619→   619→Forwards: Marko Arnautovic (Red Star Belgrade), Michael Gregoritsch (FC Augsburg), Sasa Kalajdzic (LASK Linz),
+   620→   620→
+   621→   621→Manager: Ralf Rangnick
+   622→   622→
+   623→   623→
+   624→   624→
+   625→   625→Jordan
+   626→   626→Final roster announced on June 2
+   627→   627→
+   628→   628→Goalkeepers: Yazid Abulaila (Al-Hussein), Abdallah Al-Fakhouri (Al-Wehdat), Nour Bani Attiah (Al-Faisaly)
+   629→   629→
+   630→   630→Defenders: Ihsan Haddad (Al-Hussein), Saed Al-Rosan (Al-Hussein), Mohammad Abualnadi (Selangor), Husam Abu Dahab (Al-Faisaly), Mohammed Abu Hashish (Al-Karma), Yazan Al-Arab (FC Seoul), Anas Badawi (Al-Faisaly), Abdallah Nasib (Al-Zawraa), Saleem Obaid (Al-Hussein)
+   631→   631→
+   632→   632→Midfielders: Mohammed Al-Dawoud (Al-Wehdat), Nizar Al-Rashdan (Qatar SC), Noor Al-Rawabdeh (Selangor), Rajaei Ayed (Al-Hussein), Amer Jamous (Al-Zawraa), Ibrahim Sadeh (Al-Karma), Mohannad Abu Taha (Al-Quwa Al-Jawiya)
+   633→   633→
+   634→   634→Forwards: Mohammed Abu Zrayq (Raja Casablanca), Mousa Al-Tamari (Rennes), Ali Azaizeh (Al-Shabab), Odeh Al-Fakhouri (Pyramids), Ali Olwan (Al-Sailiaya), Ibrahim Sabra (Lokomotiva Zagreb), Mahmoud Al-Mardi (Al-Hussein)
+   635→   635→
+   636→   636→Manager: Jamal Sellami
+   637→   637→
+   638→   638→
+   639→   639→
+   640→   640→
+   641→   641→GROUP K
+   642→   642→
+   643→   643→
+   644→   644→Portugal
+   645→   645→Roster announced May 19.
+   646→   646→
+   647→   647→Goalkeepers: Diogo Costa (Porto), José Sá (Wolverhampton Wanderers), Rui Silva (Sporting Lisbon), Ricardo Velho ( Gençlerbirliği)
+   648→   648→
+   649→   649→Defenders: Rúben Dias (Manchester City), João Cancelo (Barcelona), Diogo Dalot (Manchester United), Nuno Mendes (Paris Saint-Germain), Nélson Semedo (Fenerbahce), Matheus Nunes (Manchester City), Gonçalo Inacio (Sporting Lisbon), Renato Veiga (Villarreal), Tomás Araújo (Benfica)
+   650→   650→
+   651→   651→Midfielders: Bruno Fernandes (Manchester United), Bernardo Silva (Manchester City), Vitinha (PSG), João Neves (PSG), Rúben Neves (Al Hilal), Samú Costa (Mallorca)
+   652→   652→
+   653→   653→Forwards: Cristiano Ronaldo (Al Nassr), Rafael Leão (AC Milan), João Félix (Al Nassr), Gonçalo Ramos (PSG), Pedro Neto (Chelsea), Francisco Conceição (Juventus), Gonçalo Guedes (Real Sociedad), Francisco Trincão (Sporting Lisbon).
+   654→   654→
+   655→   655→Manager: Roberto Martinez
+   656→   656→
+   657→   657→
+   658→   658→
+   659→   659→Congo DR
+   660→   660→Roster announced on May 18
+   661→   661→
+   662→   662→Goalkeepers: Lionel Mpasi (Le Havre), Timothy Fayulu (FC Noah), Matthieu Epolo (Standard Liege)
+   663→   663→
+   664→   664→Defenders: Chancel Mbemba (Lille), Axel Tuanzebe (Burnley), Arthur Masuaku (Lens), Gedeon Kalulu (Aris Limassol), Joris Kayembe (Genk), Aaron Wan-Bissaka (West Ham United), Aaron Tshibola (Kilmarnock), Steve Kapuadi (Widzew Łódź), Dylan Batubinsika (AEL)
+   665→   665→
+   666→   666→Midfielders: Noah Sadiki (Sunderland), Charles Pickel (Espanyol), Edo Kayembe (Watford), Samuel Moutoussamy (Atromitos), Ngal'ayel Mukau (Lille), Nathanaël Mbuku (Montpellier), Meschak Elia (Alanyaspor), Brian Cipenga (Castellón), Gaël Kakuta (AEL), Théo Bongonda (Spartak Moscow)
+   667→   667→
+   668→   668→Forwards: Simon Banza (Al Jazira), Yoane Wissa (Newcastle United), Fiston Mayele (Pyramids FC), Cédric Bakambu (Real Betis)
+   669→   669→
+   670→   670→Manager: Sebastien Desabre
+   671→   671→
+   672→   672→
+   673→   673→
+   674→   674→Uzbekistan
+   675→   675→Final roster announced on May 5
+   676→   676→
+   677→   677→Goalkeepers: Utkir Yusupov (Navbahor), Botirali Ergashev (AGMK), Abduvokhid Nematov (Nasaf)
+   678→   678→
+   679→   679→Defenders: Avazbek Ulmasaliev (AGMK), Jakhongir Urozov (Dinamo Samarqand), Rustamjon Ashurmatov (Esteghlal), Umarbek Eshmurodov (Nasaf), Abdukodir Khusanov (Manchester City), Abdulla Abdullaev (Dibba Al Fujairah), Farrukh Sayfiev (Neftchi), Khojiakbar Alijonov (Pakhtakor), Sherzod Nasrullaev (Nasaf), Behruz Karimov (Surkhon)
+   680→   680→
+   681→   681→Midfielders: Sherzod Esanov (Buxoro), Umarali Rakhmonaliev (Sabah), Akmal Mozgovoy (Pakhtakor), Otabek Shukurov (Baniyas), Jamshid Iskanderov (Neftchi), Azizjon Ganiev (Al Bataeh), Abbosek Fayzullaev (Istanbul Basaksehir), Jaloliddin Masharipov (Esteghlal), Dostonbek Khamdamov (Pakhtakor), Oston Urunov (Persepolis)
+   682→   682→
+   683→   683→Forwards: Azizbek Amonov (Buxoro), Igor Sergeev (Persepolis), Eldor Shomurodov (Istanbul Basaksehir)
+   684→   684→
+   685→   685→Manager: Fabio Cannavaro
+   686→   686→
+   687→   687→
+   688→   688→
+   689→   689→Colombia
+   690→   690→Final roster announced May 25
+   691→   691→
+   692→   692→Goalkeepers: David Ospina (Atlético Nacional), Álvaro Montero (Vélez Sarsfield), Camilo Vargas (Atlas)
+   693→   693→
+   694→   694→Defenders: Daniel Muñoz (Crystal Palace), Jhon Lucumí (Bologna), Santiago Arias (Independiente), Davinson Sánchez (Galatasaray), Johan Mojica (Mallorca), Yerry Mina (Cagliari), Willer Ditta (Cruz Azul), Deiver Machado (Nantes)
+   695→   695→
+   696→   696→Midfielders: Jorge Carrascal (Flamengo), Kevin Castaño (River Plate), Gustavo Puerta (Racing Santander), Juan Fernando Quintero (River Plate), Juan Portilla (Athletico Paranaense), Jefferson Lerma (Crystal Palace), Richard Ríos (Benfica), Jhon Arias (Palmeiras), James Rodríguez (Minnesota United), Jaminton Campaz (Rosario Central)
+   697→   697→
+   698→   698→Forwards: Luis Díaz (Bayern Munich), Jhon Córdoba (Krasnodar), Luis Suárez (Sporting CP), Andrés Gómez (Vasco da Gama), Cucho Hernández (Real Betis)
+   699→   699→
+   700→   700→Manager: Nestor Lorenzo
+   701→   701→
+   702→   702→
+   703→   703→
+   704→   704→
+   705→   705→GROUP L
+   706→   706→
+   707→   707→
+   708→   708→England
+   709→   709→Roster announced on May 22
+   710→   710→
+   711→   711→Goalkeepers: Jordan Pickford (Everton), Dean Henderson (Crystal Palace), James Trafford (Manchester City)
+   712→   712→
+   713→   713→Defenders: Reece James (Chelsea), Ezri Konsa (Aston Villa), Jarell Quansah (Bayer Leverkusen), John Stones (Manchester City), Marc Guéhi (Manchester City), Dan Burn (Newcastle United), Nico O'Reilly (Manchester City), Djed Spence (Tottenham Hotspur), Tino Livramento (Newcastle United)
+   714→   714→
+   715→   715→Midfielders: Declan Rice (Arsenal), Elliot Anderson (Nottingham Forest), Kobbie Mainoo (Manchester United), Jordan Henderson (Brentford), Morgan Rogers (Aston Villa), Jude Bellingham (Real Madrid), Eberechi Eze (Arsenal)
+   716→   716→
+   717→   717→Forwards: Harry Kane (Bayern Munich), Ivan Toney (Al-Ahli), Ollie Watkins (Aston Villa), Bukayo Saka (Arsenal), Marcus Rashford (Manchester United), Anthony Gordon (Newcastle United), Noni Madueke (Arsenal)
+   718→   718→
+   719→   719→Manager: Thomas Tuchel
+   720→   720→
+   721→   721→
+   722→   722→
+   723→   723→Croatia
+   724→   724→Final roster announced June 1
+   725→   725→
+   726→   726→Goalkeepers: Dominik Livakovic (Dinamo Zagreb), Dominik Kotarski (Kobenhavn), Ivor Pandur (Hull City)
+   727→   727→
+   728→   728→Defenders: Josko Gvardiol (Manchester City), Duje Caleta-Car (Real Sociedad), Josip Sutalo (Ajax), Josip Stanisic (Bayern Munich), Marin Pongracic (Fiorentina), Martin Erlic (Midtjylland), Luka Vuskovic (Hamburg)
+   729→   729→
+   730→   730→Midfielders: Luka Modric (AC Milan), Mateo Kovacic (Manchester City), Mario Pasalic (Atalanta), Nikola Vlasic (Torino), Luka Sucic (Real Sociedad), Martin Baturina (Como), Kristijan Jakic (Augsburg), Petar Sucic (Inter Milan), Nikola Moro (Bologna), Toni Fruk (Rijeka)
+   731→   731→
+   732→   732→Forwards: Ivan Perisic (PSV Eindhoven), Andrej Kramaric (Hoffenheim), Ante Budimir (Osasuna), Marco Pasalic (Orlando City), Petar Musa (FC Dallas), Igor Matanovic (Freiburg)
+   733→   733→
+   734→   734→Manager: Zlatko Dalic
+   735→   735→
+   736→   736→
+   737→   737→
+   738→   738→Ghana
+   739→   739→Final squad announced on June 1
+   740→   740→
+   741→   741→Goalkeepers: Benjamin Asare (Accra Hearts of Oak SC), Lawrence Ati-Zigi (St Gallen), Joseph Anang (St Patrick's Athletic)
+   742→   742→
+   743→   743→Defenders: Baba Abdul Rahman (PAOK Salonika), Gideon Mensah (AJ Auxerre), Marvin Senaya (AJ Auxerre), Alidu Seidu (Stade Rennais), Abdul Mumin (Rayo Vallecano), Jerome Opoku (Istanbul Basaksehir), Jonas Adjetey (VfL Wolfsburg), Kojo Oppong Peprah (Nice), Derrick Luckassen (Pafos)
+   744→   744→
+   745→   745→Midfielders: Elisha Owusu (AJ Auxerre), Thomas Partey (Villarreal), Kwasi Sibo (Real Oviedo), Augustine Boakye (Saint-Étienne), Caleb Yirenkyi (FC Nordsjælland), Abdul Fatawu Issahaku (Leicester City)
+   746→   746→
+   747→   747→Forwards: Kamal Deen Sulemana (Atalanta), Christopher Bonsu Baah (Al Qadsiah), Ernest Nuamah (Lyon), Antoine Semenyo (Manchester City), Brandon Thomas-Asante (Coventry City), Prince Kwabena Adu (Viktoria Plzen), Iñaki Williams (Athletic Club), Jordan Ayew (Leicester City)
+   748→   748→
+   749→   749→Manager: Carlos Queiroz
+   750→   750→
+   751→   751→
+   752→   752→
+   753→   753→Panama
+   754→   754→Roster announced on May 26
+   755→   755→
+   756→   756→Goalkeepers: Orlando Mosquera (Al Fayha), Luis Mejía (Nacional), César Samudio (Marathón)
+   757→   757→
+   758→   758→Defenders: César Blackman (Slovan Bratislava), Jorge Gutiérrez (Deportivo La Guaira), Amir Murillo (Beşiktaş), Fidel Escobar (Saprissa), Andrés Andrade (LASK), Edgardo Fariña (Pari Nizhny Novgorod), José Córdoba (Norwich City), Éric Davis (Plaza Amador), Jiovany Ramos (Puerto Cabello), Roderick Miller (Turan Tovuz)
+   759→   759→
+   760→   760→Midfielders: Aníbal Godoy (San Diego FC), Adalberto Carrasquilla (Pumas UNAM), Carlos Harvey (Minnesota United), Cristian Martínez (Ironi Kiryat Shmona), José Luis Rodríguez (Juárez), César Yanis (Cobresal), Yoel Bárcenas (Mazatlán), Alberto Quintero (Plaza Amador), Azarias Londoño (Universidad Católica)
+   761→   761→
+   762→   762→Forwards: Ismael Díaz (León), Cecilio Waterman (Universidad de Concepción), José Fajardo (Universidad Católica), Tomás Rodríguez (Saprissa)
+   763→   763→
+   764→   764→Manager: Thomas Christiansen
+   765→   765→
+   766→   766→

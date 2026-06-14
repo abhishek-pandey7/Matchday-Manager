@@ -67,3 +67,23 @@ Stage Summary:
 - SetupPage has expandable squad preview per team
 - TacticsPage has polished UI with icons and rating badges
 - All builds pass cleanly
+
+---
+Task ID: 1
+Agent: main
+Task: Replace fake player names with real WC 2026 squad data and fix team selection bug
+
+Work Log:
+- Read uploaded squad file with 48 teams' official WC 2026 squad data
+- Parsed all 48 teams (Mexico, South Africa, South Korea, etc.) with real player names, clubs, and positions
+- Generated data.ts with 1,247 real players across all 48 teams
+- Added manual star player ratings for ~200+ key players (Messi 93, Mbappé 92, Haaland 91, Salah 87, etc.)
+- Fixed GK defending stat modifier (was +5, now -10 to avoid unrealistic 90+ defending for GKs)
+- Fixed store initialization mismatch: lineupA/lineupB now correctly initialize with Argentina/France data instead of TEAMS[0]/TEAMS[1]
+- Built and tested the app successfully - team selection, tactics, and simulation all work with real players
+
+Stage Summary:
+- All 48 teams now have REAL player names from official WC 2026 squad announcements
+- Team selection works correctly (was a store initialization bug, not a UI bug)
+- App builds and runs on production mode
+- Real player names visible in tactics, simulation events, and squad previews
