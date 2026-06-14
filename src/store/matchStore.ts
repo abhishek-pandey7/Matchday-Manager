@@ -87,21 +87,45 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   step: 'setup',
   setStep: (step) => set({ step }),
 
-  teamAId: 'argentina',
-  teamBId: 'france',
+  teamAId: '',
+  teamBId: '',
   teams: TEAMS,
 
   setTeamA: (id) => {
+    if (!id) {
+      set({ teamAId: '', lineupA: { formation: '4-3-3', starting11: [], subs: [], substitutions: [], tactics: { ...defaultTactics } } });
+      return;
+    }
     const team = TEAMS.find(t => t.id === id);
-    if (team) set({ teamAId: id, lineupA: createDefaultLineup(team) });
+    if (team) {
+      set({ teamAId: id, lineupA: createDefaultLineup(team) });
+    }
   },
   setTeamB: (id) => {
+    if (!id) {
+      set({ teamBId: '', lineupB: { formation: '4-3-3', starting11: [], subs: [], substitutions: [], tactics: { ...defaultTactics } } });
+      return;
+    }
     const team = TEAMS.find(t => t.id === id);
-    if (team) set({ teamBId: id, lineupB: createDefaultLineup(team) });
+    if (team) {
+      set({ teamBId: id, lineupB: createDefaultLineup(team) });
+    }
   },
 
-  lineupA: createDefaultLineup(TEAMS.find(t => t.id === 'argentina')!),
-  lineupB: createDefaultLineup(TEAMS.find(t => t.id === 'france')!),
+  lineupA: {
+    formation: '4-3-3',
+    starting11: [],
+    subs: [],
+    substitutions: [],
+    tactics: { ...defaultTactics },
+  },
+  lineupB: {
+    formation: '4-3-3',
+    starting11: [],
+    subs: [],
+    substitutions: [],
+    tactics: { ...defaultTactics },
+  },
 
   setFormation: (team, formation) => {
     const state = get();

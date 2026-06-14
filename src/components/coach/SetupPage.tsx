@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useCoachStore } from '@/store/matchStore';
 import { Team } from '@/lib/simulation/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Search, Users, Shield, Swords, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Users, Shield, Swords, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 const CONTINENTS = [
   { id: 'all', label: 'All', emoji: '🌍' },
@@ -38,7 +37,7 @@ function SquadPreview({ team }: { team: Team }) {
   return (
     <div className="mt-2">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
         className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
       >
         <Users className="w-3 h-3" />
@@ -82,6 +81,7 @@ function TeamSelector({
   teams,
   colorDot,
   accentClass,
+  disabledTeamId,
 }: {
   label: string;
   teamId: string;
@@ -89,6 +89,7 @@ function TeamSelector({
   teams: Team[];
   colorDot: string;
   accentClass: string;
+  disabledTeamId: string;
 }) {
   const [continent, setContinent] = useState('all');
   const [search, setSearch] = useState('');
@@ -102,8 +103,17 @@ function TeamSelector({
     });
   }, [teams, continent, search]);
 
-  const selectedTeam = teams.find(t => t.id === teamId);
-  const previewTeamData = previewTeam ? teams.find(t => t.id === previewTeam) : null;
+  const selectedTeam = teamId ? teams.find(t => t.id === teamId) : null;
+
+  const handleSelectTeam = useCallback((id: string) => {
+    if (id === disabledTeamId) return;
+    setTeam(id);
+    setPreviewTeam(null);
+  }, [setTeam, disabledTeamId]);
+
+  const handleDeselect = useCallback(() => {
+    setTeam('');
+  }, [setTeam]);
 
   return (
     <Card className="border-2">
@@ -111,12 +121,24 @@ function TeamSelector({
         <CardTitle className="text-lg flex items-center gap-2">
           <span className={`w-3 h-3 rounded-full ${colorDot}`} />
           {label}
+          {selectedTeam && (
+            <Badge variant="outline" className="ml-auto text-[10px]">
+              Selected
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Selected team display */}
         {selectedTeam && (
-          <div className={`p-3 rounded-lg border-2 ${accentClass} mb-3`}>
+          <div className={`p-3 rounded-lg border-2 ${accentClass} mb-3 relative`}>
+            <button
+              onClick={handleDeselect}
+              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-background/80 hover:bg-background flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              title="Deselect team"
+            >
+              <X className="w-3 h-3" />
+            </button>
             <div className="flex items-center gap-3">
               <span className="text-3xl">{selectedTeam.flag}</span>
               <div className="flex-1">
@@ -157,6 +179,13 @@ function TeamSelector({
           </div>
         )}
 
+        {/* Prompt when no team selected */}
+        {!selectedTeam && (
+          <div className="p-3 rounded-lg border-2 border-dashed border-muted-foreground/30 mb-3 text-center">
+            <p className="text-sm text-muted-foreground">Select a team below</p>
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -192,49 +221,62 @@ function TeamSelector({
 
         {/* Team list */}
         <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
-          {filteredTeams.map(team => (
-            <div key={team.id}>
-              <button
-                onClick={() => { setTeam(team.id); setPreviewTeam(null); }}
-                onMouseEnter={() => setPreviewTeam(team.id)}
-                onMouseLeave={() => setPreviewTeam(null)}
-                className={`w-full p-2 rounded-lg border-2 text-left transition-all hover:shadow-md ${
-                  teamId === team.id
-                    ? accentClass
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{team.flag}</span>
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold"
-                      style={{ backgroundColor: team.color, color: team.textColor }}
-                    >
-                      {team.shortName}
+          {filteredTeams.map(team => {
+            const isSelected = teamId === team.id;
+            const isOtherSelected = team.id === disabledTeamId;
+
+            return (
+              <div key={team.id}>
+                <button
+                  onClick={() => handleSelectTeam(team.id)}
+                  onMouseEnter={() => setPreviewTeam(team.id)}
+                  onMouseLeave={() => setPreviewTeam(null)}
+                  disabled={isOtherSelected}
+                  className={`w-full p-2 rounded-lg border-2 text-left transition-all ${
+                    isSelected
+                      ? accentClass
+                      : isOtherSelected
+                      ? 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
+                      : 'border-border hover:border-primary/50 hover:shadow-md cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{team.flag}</span>
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold"
+                        style={{ backgroundColor: team.color, color: team.textColor }}
+                      >
+                        {team.shortName}
+                      </div>
+                      <div>
+                        <span className="font-medium text-sm">{team.name}</span>
+                        <div className="text-[10px] text-muted-foreground">{team.continent}</div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium text-sm">{team.name}</span>
-                      <div className="text-[10px] text-muted-foreground">{team.continent}</div>
+                    <div className="flex items-center gap-1">
+                      {isOtherSelected && (
+                        <span className="text-[9px] text-muted-foreground italic">other side</span>
+                      )}
+                      <Badge variant="secondary" className="text-[10px] px-1.5">
+                        {team.overallRating}
+                      </Badge>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="text-[10px] px-1.5">
-                    {team.overallRating}
-                  </Badge>
-                </div>
-              </button>
-              {/* Hover preview */}
-              {previewTeam === team.id && teamId !== team.id && (
-                <div className="px-2 pb-1">
-                  <div className="flex gap-2 text-[10px] text-muted-foreground">
-                    <span>ATK {team.attackRating}</span>
-                    <span>MID {team.midfieldRating}</span>
-                    <span>DEF {team.defenseRating}</span>
+                </button>
+                {/* Hover preview */}
+                {previewTeam === team.id && !isSelected && !isOtherSelected && (
+                  <div className="px-2 pb-1">
+                    <div className="flex gap-2 text-[10px] text-muted-foreground">
+                      <span>ATK {team.attackRating}</span>
+                      <span>MID {team.midfieldRating}</span>
+                      <span>DEF {team.defenseRating}</span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -250,6 +292,8 @@ export default function SetupPage() {
     setTeamB,
     setStep,
   } = useCoachStore();
+
+  const canProceed = !!(teamAId && teamBId && teamAId !== teamBId);
 
   return (
     <div className="space-y-6">
@@ -293,6 +337,7 @@ export default function SetupPage() {
           teams={teams}
           colorDot="bg-green-500"
           accentClass="border-primary bg-primary/5 shadow-sm"
+          disabledTeamId={teamBId}
         />
         <TeamSelector
           label="Away Team"
@@ -301,17 +346,14 @@ export default function SetupPage() {
           teams={teams}
           colorDot="bg-red-500"
           accentClass="border-destructive bg-destructive/5 shadow-sm"
+          disabledTeamId={teamAId}
         />
       </div>
-
-      {teamAId === teamBId && (
-        <p className="text-center text-destructive font-medium">Please select two different teams</p>
-      )}
 
       <div className="flex justify-center">
         <Button
           size="lg"
-          disabled={teamAId === teamBId || !teamAId || !teamBId}
+          disabled={!canProceed}
           onClick={() => setStep('tactics')}
           className="px-12 text-lg"
         >
