@@ -888,86 +888,96 @@ export default function TacticsPage() {
       onDragCancel={handleDragCancel}
     >
       <div className="space-y-4">
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl md:text-3xl font-bold">Build Your Starting XI</h2>
+        {/* Header — kinetic typography */}
+        <div className="space-y-1">
+          <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+            Step 02 — Lineup &amp; Tactics
+          </div>
+          <h2 className="text-5xl md:text-6xl font-black leading-none tracking-tighter uppercase">
+            BUILD<br />
+            <span style={{ color: 'var(--primary)' }}>YOUR XI</span>
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Drag players between positions on the pitch, or click + to pick from the squad
+            Drag players between positions, or click <span className="font-mono text-foreground">+</span> to pick from the squad.
           </p>
         </div>
 
-        {/* Team Toggle */}
-        <div className="flex justify-center gap-3">
+        {/* Scrolling marquee ticker */}
+        <div className="overflow-hidden border-y border-border py-2" aria-hidden="true">
+          <div className="animate-marquee">
+            {[
+              '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1', '4-1-4-1',
+              'FORMATION', 'TACTICS', 'SUBSTITUTE', 'XI', 'MENTALITY', 'PRESS', 'TEMPO', 'WIDTH',
+              '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1', '4-1-4-1',
+              'FORMATION', 'TACTICS', 'SUBSTITUTE', 'XI', 'MENTALITY', 'PRESS', 'TEMPO', 'WIDTH',
+            ].map((t, i) => (
+              <span
+                key={i}
+                className="mx-4 text-[11px] font-bold tracking-widest uppercase text-muted-foreground/60"
+              >
+                {t} <span style={{ color: 'var(--primary)' }}>·</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Team Toggle — brutalist tab style */}
+        <div className="flex border border-border overflow-hidden">
           {teamA && (
             <button
               onClick={() => {
                 setActiveTeam('A');
                 setPickerSlot(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+              className={`flex-1 flex items-center gap-2.5 px-4 py-3 transition-all text-sm font-bold ${
                 activeTeam === 'A'
-                  ? 'border-primary bg-primary/10 shadow-md'
-                  : 'border-border hover:bg-muted/50'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
               <span className="text-xl">{teamA.flag}</span>
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
-                style={{ backgroundColor: teamA.color, color: teamA.textColor }}
-              >
-                {teamA.shortName.substring(0, 2)}
-              </div>
-              <span className="font-semibold">{teamA.name}</span>
-              <Badge variant="outline" className="text-[9px]">
-                OVR {teamA.overallRating}
-              </Badge>
+              <span>{teamA.name}</span>
+              <span className="font-mono text-[10px] opacity-70">OVR {teamA.overallRating}</span>
               {!store.isLineupValid('A') && (
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500 ml-auto" />
               )}
             </button>
           )}
+          <div className="w-px bg-border" />
           {teamB && (
             <button
               onClick={() => {
                 setActiveTeam('B');
                 setPickerSlot(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+              className={`flex-1 flex items-center gap-2.5 px-4 py-3 transition-all text-sm font-bold ${
                 activeTeam === 'B'
-                  ? 'border-primary bg-primary/10 shadow-md'
-                  : 'border-border hover:bg-muted/50'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}
             >
               <span className="text-xl">{teamB.flag}</span>
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
-                style={{ backgroundColor: teamB.color, color: teamB.textColor }}
-              >
-                {teamB.shortName.substring(0, 2)}
-              </div>
-              <span className="font-semibold">{teamB.name}</span>
-              <Badge variant="outline" className="text-[9px]">
-                OVR {teamB.overallRating}
-              </Badge>
+              <span>{teamB.name}</span>
+              <span className="font-mono text-[10px] opacity-70">OVR {teamB.overallRating}</span>
               {!store.isLineupValid('B') && (
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500 ml-auto" />
               )}
             </button>
           )}
         </div>
 
         {/* Formation Selector + Position Counts */}
-        <Card>
+        <Card className="rounded-none">
           <CardContent className="pt-4 pb-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               {FORMATION_LIST.map(f => (
                 <button
                   key={f}
                   onClick={() => store.setFormation(teamKey, f)}
-                  className={`py-1 px-2.5 rounded-md text-sm font-mono border transition-all ${
+                  className={`py-1 px-2.5 text-xs font-mono font-bold border transition-all ${
                     lineup.formation === f
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted/50 border-border hover:bg-muted'
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
                   }`}
                 >
                   {f}
@@ -975,7 +985,7 @@ export default function TacticsPage() {
               ))}
               <button
                 onClick={() => store.autoFillLineup(teamKey)}
-                className="py-1 px-2.5 rounded-md text-sm border border-dashed border-muted-foreground/50 hover:bg-muted/50 transition-all flex items-center gap-1"
+                className="py-1 px-2.5 text-xs border border-dashed border-muted-foreground/50 hover:bg-muted/50 transition-all flex items-center gap-1 text-muted-foreground hover:text-foreground"
                 title="Auto-fill best XI"
               >
                 <RotateCcw className="w-3 h-3" /> Auto
@@ -1441,8 +1451,8 @@ export default function TacticsPage() {
         {/* Navigation — sticky on mobile */}
         <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t py-3 px-4 -mx-4 sm:mx-0 sm:border-0 sm:py-2 sm:static sm:bg-transparent sm:backdrop-blur-none">
           {!canSimulate && (
-            <div className="text-center text-xs text-red-500 mb-2 flex items-center justify-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
+            <div className="text-xs text-red-500 mb-2 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
               {!validA && !validB
                 ? 'Both teams need valid lineups'
                 : !validA
@@ -1450,18 +1460,28 @@ export default function TacticsPage() {
                 : `${teamB?.name || 'Team B'} lineup incomplete — need 11 players with min 3 DEF & 1 GK`}
             </div>
           )}
-          <div className="flex justify-center gap-4">
-            <Button variant="outline" size="lg" onClick={() => store.setStep('setup')}>
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </Button>
-            <Button
-              size="lg"
-              onClick={() => store.startSimulation()}
-              className="px-10 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-              disabled={!canSimulate}
-            >
-              <Play className="w-4 h-4 mr-2" /> Simulate Match
-            </Button>
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">
+              {canSimulate ? 'Lineups ready — kick off!' : 'Complete both lineups to continue'}
+            </span>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => store.setStep('setup')}
+                className="rounded-none font-bold tracking-wider uppercase text-sm h-11"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back
+              </Button>
+              <Button
+                size="lg"
+                onClick={() => store.startSimulation()}
+                className="rounded-none font-bold tracking-wider uppercase text-sm px-8 h-11 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30"
+                disabled={!canSimulate}
+              >
+                <Play className="w-4 h-4 mr-2" /> Simulate Match
+              </Button>
+            </div>
           </div>
         </div>
       </div>

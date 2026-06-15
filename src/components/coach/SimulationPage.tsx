@@ -49,20 +49,20 @@ const EVENT_ICONS: Record<MatchEventType, string> = {
 };
 
 const EVENT_COLORS: Record<MatchEventType, string> = {
-  goal: 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400',
-  shot_on_target: 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-300',
-  shot_off_target: 'bg-gray-50 dark:bg-gray-900/10 border-l-4 border-gray-300',
-  corner: 'bg-orange-50 dark:bg-orange-900/10 border-l-4 border-orange-300',
-  foul: 'bg-amber-50 dark:bg-amber-900/10 border-l-4 border-amber-300',
-  yellow_card: 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500',
-  red_card: 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500',
-  offside: 'bg-purple-50 dark:bg-purple-900/10 border-l-4 border-purple-300',
-  pass_sequence: 'bg-green-50 dark:bg-green-900/10 border-l-4 border-green-300',
-  substitution: 'bg-sky-50 dark:bg-sky-900/10 border-l-4 border-sky-400',
-  injury: 'bg-rose-50 dark:bg-rose-900/10 border-l-4 border-rose-400',
-  half_time: 'bg-muted border-l-4 border-muted-foreground',
-  full_time: 'bg-muted border-l-4 border-muted-foreground',
-  kick_off: 'bg-muted border-l-4 border-muted-foreground',
+  goal: 'border-l-4 border-yellow-400 bg-yellow-400/10',
+  shot_on_target: 'border-l-4 border-blue-400 bg-blue-400/10',
+  shot_off_target: 'border-l-4 border-border bg-muted/30',
+  corner: 'border-l-4 border-orange-400 bg-orange-400/10',
+  foul: 'border-l-4 border-amber-400 bg-amber-400/10',
+  yellow_card: 'border-l-4 border-yellow-500 bg-yellow-500/10',
+  red_card: 'border-l-4 border-red-500 bg-red-500/10',
+  offside: 'border-l-4 border-purple-400 bg-purple-400/10',
+  pass_sequence: 'border-l-4 border-primary/60 bg-primary/5',
+  substitution: 'border-l-4 border-sky-400 bg-sky-400/10',
+  injury: 'border-l-4 border-rose-400 bg-rose-400/10',
+  half_time: 'border-l-4 border-border bg-muted/40',
+  full_time: 'border-l-4 border-primary bg-primary/10',
+  kick_off: 'border-l-4 border-border bg-muted/20',
 };
 
 function getTeamName(teamId: string, teamAId: string, teamBId: string): string {
@@ -195,9 +195,20 @@ export default function SimulationPage() {
 
   return (
     <div className="space-y-4">
+      {/* Kinetic heading */}
+      <div className="space-y-1">
+        <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+          Step 03 — Match Simulation
+        </div>
+        <h2 className="text-5xl md:text-6xl font-black leading-none tracking-tighter uppercase">
+          MATCH<br />
+          <span style={{ color: 'var(--primary)' }}>DAY</span>
+        </h2>
+      </div>
+
       {/* Scoreboard */}
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-muted/50 to-muted p-4 md:p-6">
+      <Card className="overflow-hidden rounded-none">
+        <div className="bg-muted/30 border-b border-border p-4 md:p-6">
           <div className="flex items-center justify-center gap-4 md:gap-8">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{teamA.flag}</span>

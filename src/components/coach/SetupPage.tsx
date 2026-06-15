@@ -3,66 +3,66 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useCoachStore } from '@/store/matchStore';
 import { Team } from '@/lib/simulation/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Users, Shield, Swords, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
 
 const CONTINENTS = [
-  { id: 'all', label: 'All', emoji: '🌍' },
-  { id: 'UEFA', label: 'Europe', emoji: '🇪🇺' },
-  { id: 'CONMEBOL', label: 'S. America', emoji: '🌎' },
-  { id: 'CONCACAF', label: 'N. America', emoji: '🌎' },
-  { id: 'AFC', label: 'Asia', emoji: '🌏' },
-  { id: 'CAF', label: 'Africa', emoji: '🌍' },
-  { id: 'OFC', label: 'Oceania', emoji: '🌏' },
+  { id: 'all', label: 'ALL' },
+  { id: 'UEFA', label: 'EUR' },
+  { id: 'CONMEBOL', label: 'SAM' },
+  { id: 'CONCACAF', label: 'NAM' },
+  { id: 'AFC', label: 'ASI' },
+  { id: 'CAF', label: 'AFR' },
+  { id: 'OFC', label: 'OCE' },
 ];
 
-function positionColor(pos: string): string {
-  if (['GK'].includes(pos)) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300';
-  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-300';
-  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-300';
-  return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-300';
+function StatBar({ value, max = 99 }: { value: number; max?: number }) {
+  return (
+    <div className="relative h-0.5 bg-border w-full overflow-hidden">
+      <div
+        className="absolute inset-y-0 left-0 transition-all duration-500"
+        style={{ width: `${(value / max) * 100}%`, background: 'var(--primary)' }}
+      />
+    </div>
+  );
 }
 
 function SquadPreview({ team }: { team: Team }) {
   const [expanded, setExpanded] = useState(false);
 
-  const gks = team.players.filter(p => p.position === 'GK');
-  const defs = team.players.filter(p => ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(p.position));
-  const mids = team.players.filter(p => ['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(p.position));
-  const fwds = team.players.filter(p => ['ST', 'CF', 'LW', 'RW'].includes(p.position));
+  const groups = [
+    { label: 'GK', players: team.players.filter(p => p.position === 'GK') },
+    { label: 'DEF', players: team.players.filter(p => ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(p.position)) },
+    { label: 'MID', players: team.players.filter(p => ['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(p.position)) },
+    { label: 'FWD', players: team.players.filter(p => ['ST', 'CF', 'LW', 'RW'].includes(p.position)) },
+  ];
 
   return (
-    <div className="mt-2">
+    <div className="mt-3 border-t border-border/50 pt-2">
       <button
         onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-        className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+        className="w-full flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors tracking-widest uppercase py-1"
       >
         <Users className="w-3 h-3" />
-        {expanded ? 'Hide' : 'Show'} Squad ({team.players.length} players)
+        {expanded ? 'Hide' : 'Show'} Squad ({team.players.length})
         {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
+
       {expanded && (
-        <div className="space-y-2 mt-1 text-xs">
-          {[
-            { label: 'GK', players: gks, icon: '🧤' },
-            { label: 'DEF', players: defs, icon: '🛡️' },
-            { label: 'MID', players: mids, icon: '⚙️' },
-            { label: 'FWD', players: fwds, icon: '⚡' },
-          ].map(group => (
+        <div className="mt-2 space-y-2">
+          {groups.map(group => (
             <div key={group.label}>
-              <div className="text-[10px] font-medium text-muted-foreground mb-0.5">
-                {group.icon} {group.label} ({group.players.length})
+              <div className="text-[9px] font-bold tracking-widest text-muted-foreground mb-1 uppercase">
+                {group.label}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-px">
                 {group.players.map(p => (
-                  <div key={p.id} className="flex items-center justify-between py-0.5 px-1 rounded hover:bg-muted/50">
-                    <span className="font-medium">{p.name}</span>
-                    <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                  <div key={p.id} className="flex items-center justify-between py-0.5">
+                    <span className="text-[11px]">{p.name}</span>
+                    <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--primary)' }}>
                       {p.rating}
-                    </Badge>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -76,24 +76,21 @@ function SquadPreview({ team }: { team: Team }) {
 
 function TeamSelector({
   label,
+  side,
   teamId,
   setTeam,
   teams,
-  colorDot,
-  accentClass,
   disabledTeamId,
 }: {
   label: string;
+  side: 'home' | 'away';
   teamId: string;
   setTeam: (id: string) => void;
   teams: Team[];
-  colorDot: string;
-  accentClass: string;
   disabledTeamId: string;
 }) {
   const [continent, setContinent] = useState('all');
   const [search, setSearch] = useState('');
-  const [previewTeam, setPreviewTeam] = useState<string | null>(null);
 
   const filteredTeams = useMemo(() => {
     return teams.filter(t => {
@@ -105,257 +102,239 @@ function TeamSelector({
 
   const selectedTeam = teamId ? teams.find(t => t.id === teamId) : null;
 
-  const handleSelectTeam = useCallback((id: string) => {
-    if (id === disabledTeamId) return;
-    setTeam(id);
-    setPreviewTeam(null);
-  }, [setTeam, disabledTeamId]);
+  const handleSelectTeam = useCallback(
+    (id: string) => {
+      if (id === disabledTeamId) return;
+      setTeam(id);
+    },
+    [setTeam, disabledTeamId]
+  );
 
-  const handleDeselect = useCallback(() => {
-    setTeam('');
-  }, [setTeam]);
+  const accentBorder = side === 'home' ? 'border-primary' : 'border-destructive';
+  const accentText = side === 'home' ? 'text-primary' : 'text-destructive';
 
   return (
-    <Card className="border-2">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <span className={`w-3 h-3 rounded-full ${colorDot}`} />
-          {label}
-          {selectedTeam && (
-            <Badge variant="outline" className="ml-auto text-[10px]">
-              Selected
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Selected team display */}
+    <div className="border border-border bg-card flex flex-col">
+      {/* Panel label */}
+      <div
+        className="px-4 py-2.5 border-b border-border flex items-center justify-between"
+        style={side === 'home' ? { background: 'var(--primary)', color: 'var(--primary-foreground)' } : {}}
+      >
+        <span className="text-[11px] font-bold tracking-widest uppercase">
+          {side === 'home' ? '01 /' : '02 /'} {label}
+        </span>
         {selectedTeam && (
-          <div className={`p-3 rounded-lg border-2 ${accentClass} mb-3 relative`}>
-            <button
-              onClick={handleDeselect}
-              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-background/80 hover:bg-background flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-              title="Deselect team"
-            >
-              <X className="w-3 h-3" />
-            </button>
+          <button
+            onClick={() => setTeam('')}
+            className="opacity-60 hover:opacity-100 transition-opacity"
+            title="Deselect"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Selected team display */}
+      {selectedTeam ? (
+        <div className={`border-b ${accentBorder} border-l-4 px-4 py-4`}>
+          <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">{selectedTeam.flag}</span>
-              <div className="flex-1">
-                <div className="font-bold">{selectedTeam.name}</div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{selectedTeam.continent}</span>
-                  <span>•</span>
-                  <span>Overall: {selectedTeam.overallRating}</span>
+              <span className="text-4xl leading-none">{selectedTeam.flag}</span>
+              <div>
+                <div className="font-bold text-lg leading-tight">{selectedTeam.name}</div>
+                <div className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5">
+                  {selectedTeam.continent}
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-black">{selectedTeam.overallRating}</div>
-                <div className="text-[10px] text-muted-foreground">OVR</div>
               </div>
             </div>
-            {/* Team stats */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <div className="text-center p-1 rounded bg-background/50">
-                <div className="flex items-center justify-center gap-0.5 text-[10px] text-muted-foreground">
-                  <Swords className="w-2.5 h-2.5" /> ATK
-                </div>
-                <div className="font-bold text-sm">{selectedTeam.attackRating}</div>
+            <div className="text-right shrink-0">
+              <div className={`text-3xl font-black font-mono ${accentText}`}>
+                {selectedTeam.overallRating}
               </div>
-              <div className="text-center p-1 rounded bg-background/50">
-                <div className="flex items-center justify-center gap-0.5 text-[10px] text-muted-foreground">
-                  <Shield className="w-2.5 h-2.5" /> MID
-                </div>
-                <div className="font-bold text-sm">{selectedTeam.midfieldRating}</div>
-              </div>
-              <div className="text-center p-1 rounded bg-background/50">
-                <div className="flex items-center justify-center gap-0.5 text-[10px] text-muted-foreground">
-                  <Shield className="w-2.5 h-2.5" /> DEF
-                </div>
-                <div className="font-bold text-sm">{selectedTeam.defenseRating}</div>
-              </div>
+              <div className="text-[9px] text-muted-foreground tracking-widest uppercase">OVR</div>
             </div>
-            <SquadPreview team={selectedTeam} />
           </div>
-        )}
 
-        {/* Prompt when no team selected */}
-        {!selectedTeam && (
-          <div className="p-3 rounded-lg border-2 border-dashed border-muted-foreground/30 mb-3 text-center">
-            <p className="text-sm text-muted-foreground">Select a team below</p>
+          {/* Rating bars */}
+          <div className="mt-4 grid grid-cols-3 gap-4 text-[10px]">
+            {[
+              { label: 'ATK', val: selectedTeam.attackRating },
+              { label: 'MID', val: selectedTeam.midfieldRating },
+              { label: 'DEF', val: selectedTeam.defenseRating },
+            ].map(({ label: l, val }) => (
+              <div key={l}>
+                <div className="flex justify-between mb-1 tracking-widest uppercase text-muted-foreground">
+                  <span>{l}</span>
+                  <span className="font-mono font-bold text-foreground">{val}</span>
+                </div>
+                <StatBar value={val} />
+              </div>
+            ))}
           </div>
-        )}
 
-        {/* Search */}
+          <SquadPreview team={selectedTeam} />
+        </div>
+      ) : (
+        <div className="px-4 py-6 text-center border-b border-dashed border-border/50">
+          <div className="text-xs text-muted-foreground tracking-widest uppercase">
+            Select a team below
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="px-3 pt-3 pb-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search teams..."
+            placeholder="Search..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-xs border-border focus:border-primary rounded-none"
           />
         </div>
+      </div>
 
-        {/* Continent filter */}
-        <div className="flex flex-wrap gap-1">
-          {CONTINENTS.map(c => (
+      {/* Continent filter */}
+      <div className="px-3 pb-2 flex flex-wrap gap-1">
+        {CONTINENTS.map(c => (
+          <button
+            key={c.id}
+            onClick={() => setContinent(c.id)}
+            className={`px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase transition-all border ${
+              continent === c.id
+                ? 'bg-foreground text-background border-foreground'
+                : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Count */}
+      <div className="px-3 pb-1.5 text-[9px] text-muted-foreground tracking-widest uppercase">
+        {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''}
+      </div>
+
+      {/* Team list */}
+      <div className="overflow-y-auto max-h-[280px] divide-y divide-border/40">
+        {filteredTeams.map(team => {
+          const isSelected = teamId === team.id;
+          const isDisabled = team.id === disabledTeamId;
+
+          return (
             <button
-              key={c.id}
-              onClick={() => setContinent(c.id)}
-              className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
-                continent === c.id
-                  ? accentClass
-                  : 'bg-muted/50 hover:bg-muted'
+              key={team.id}
+              onClick={() => handleSelectTeam(team.id)}
+              disabled={isDisabled}
+              className={`w-full px-3 py-2.5 text-left flex items-center justify-between transition-all group ${
+                isSelected
+                  ? 'bg-primary text-primary-foreground'
+                  : isDisabled
+                  ? 'opacity-30 cursor-not-allowed'
+                  : 'hover:bg-muted cursor-pointer'
               }`}
             >
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Team count */}
-        <div className="text-[10px] text-muted-foreground text-center">
-          {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''}
-        </div>
-
-        {/* Team list */}
-        <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
-          {filteredTeams.map(team => {
-            const isSelected = teamId === team.id;
-            const isOtherSelected = team.id === disabledTeamId;
-
-            return (
-              <div key={team.id}>
-                <button
-                  onClick={() => handleSelectTeam(team.id)}
-                  onMouseEnter={() => setPreviewTeam(team.id)}
-                  onMouseLeave={() => setPreviewTeam(null)}
-                  disabled={isOtherSelected}
-                  className={`w-full p-2 rounded-lg border-2 text-left transition-all ${
-                    isSelected
-                      ? accentClass
-                      : isOtherSelected
-                      ? 'border-border bg-muted/30 opacity-50 cursor-not-allowed'
-                      : 'border-border hover:border-primary/50 hover:shadow-md cursor-pointer'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{team.flag}</span>
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold"
-                        style={{ backgroundColor: team.color, color: team.textColor }}
-                      >
-                        {team.shortName}
-                      </div>
-                      <div>
-                        <span className="font-medium text-sm">{team.name}</span>
-                        <div className="text-[10px] text-muted-foreground">{team.continent}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {isOtherSelected && (
-                        <span className="text-[9px] text-muted-foreground italic">other side</span>
-                      )}
-                      <Badge variant="secondary" className="text-[10px] px-1.5">
-                        {team.overallRating}
-                      </Badge>
-                    </div>
+              <div className="flex items-center gap-2.5">
+                <span className="text-base leading-none">{team.flag}</span>
+                <div>
+                  <div className={`text-sm font-semibold leading-tight ${isSelected ? 'text-primary-foreground' : ''}`}>
+                    {team.name}
                   </div>
-                </button>
-                {/* Hover preview */}
-                {previewTeam === team.id && !isSelected && !isOtherSelected && (
-                  <div className="px-2 pb-1">
-                    <div className="flex gap-2 text-[10px] text-muted-foreground">
-                      <span>ATK {team.attackRating}</span>
-                      <span>MID {team.midfieldRating}</span>
-                      <span>DEF {team.defenseRating}</span>
-                    </div>
+                  <div className={`text-[9px] tracking-widest uppercase ${isSelected ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                    {team.continent}
                   </div>
-                )}
+                </div>
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              <span className={`font-mono text-sm font-black ${isSelected ? 'text-primary-foreground' : accentText}`}>
+                {team.overallRating}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
 export default function SetupPage() {
-  const {
-    teams,
-    teamAId,
-    teamBId,
-    setTeamA,
-    setTeamB,
-    setStep,
-  } = useCoachStore();
-
+  const { teams, teamAId, teamBId, setTeamA, setTeamB, setStep } = useCoachStore();
   const canProceed = !!(teamAId && teamBId && teamAId !== teamBId);
 
+  const teamA = teams.find(t => t.id === teamAId);
+  const teamB = teams.find(t => t.id === teamBId);
+
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <div className="text-4xl">🏆</div>
-        <h2 className="text-2xl md:text-3xl font-bold">FIFA World Cup 2026</h2>
-        <p className="text-muted-foreground">Pick two national teams and predict the outcome</p>
+    <div className="space-y-8">
+      {/* Hero heading */}
+      <div className="space-y-1">
+        <div className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+          Step 01 — Team Selection
+        </div>
+        <h2 className="text-5xl md:text-6xl font-black leading-none tracking-tighter uppercase">
+          FIFA
+          <br />
+          <span style={{ color: 'var(--primary)' }}>WC 2026</span>
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Pick two national teams and simulate the outcome.
+        </p>
       </div>
 
-      {/* Selected teams VS display */}
-      {teamAId && teamBId && (() => {
-        const teamA = teams.find(t => t.id === teamAId);
-        const teamB = teams.find(t => t.id === teamBId);
-        if (!teamA || !teamB) return null;
-        return (
-          <div className="flex items-center justify-center gap-4">
-            <div className="text-center">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-4xl">{teamA.flag}</span>
-                <span className="font-bold text-sm">{teamA.name}</span>
-                <Badge variant="secondary">OVR {teamA.overallRating}</Badge>
-              </div>
-            </div>
-            <span className="text-2xl font-bold text-muted-foreground">VS</span>
-            <div className="text-center">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-4xl">{teamB.flag}</span>
-                <span className="font-bold text-sm">{teamB.name}</span>
-                <Badge variant="secondary">OVR {teamB.overallRating}</Badge>
-              </div>
+      {/* VS banner — shown once both selected */}
+      {teamA && teamB && (
+        <div className="flex items-center gap-0 border border-border overflow-hidden">
+          <div className="flex-1 flex items-center gap-3 px-5 py-4 bg-primary text-primary-foreground">
+            <span className="text-3xl">{teamA.flag}</span>
+            <div>
+              <div className="font-black text-lg leading-tight">{teamA.name}</div>
+              <div className="text-[9px] opacity-60 tracking-widest uppercase font-mono">{teamA.overallRating} OVR</div>
             </div>
           </div>
-        );
-      })()}
+          <div className="px-5 py-4 border-x border-border bg-card shrink-0">
+            <span className="font-black text-xl tracking-widest text-muted-foreground">VS</span>
+          </div>
+          <div className="flex-1 flex items-center justify-end gap-3 px-5 py-4 bg-card">
+            <div className="text-right">
+              <div className="font-black text-lg leading-tight">{teamB.name}</div>
+              <div className="text-[9px] text-muted-foreground tracking-widest uppercase font-mono">{teamB.overallRating} OVR</div>
+            </div>
+            <span className="text-3xl">{teamB.flag}</span>
+          </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Selectors */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border border-border md:divide-x divide-y md:divide-y-0 divide-border">
         <TeamSelector
           label="Home Team"
+          side="home"
           teamId={teamAId}
           setTeam={setTeamA}
           teams={teams}
-          colorDot="bg-green-500"
-          accentClass="border-primary bg-primary/5 shadow-sm"
           disabledTeamId={teamBId}
         />
         <TeamSelector
           label="Away Team"
+          side="away"
           teamId={teamBId}
           setTeam={setTeamB}
           teams={teams}
-          colorDot="bg-red-500"
-          accentClass="border-destructive bg-destructive/5 shadow-sm"
           disabledTeamId={teamAId}
         />
       </div>
 
-      <div className="flex justify-center">
+      {/* CTA */}
+      <div className="flex items-center justify-between border-t border-border pt-6">
+        <span className="text-[10px] text-muted-foreground tracking-widest uppercase">
+          {canProceed ? 'Both teams selected — ready to proceed' : 'Select two different teams to continue'}
+        </span>
         <Button
           size="lg"
           disabled={!canProceed}
           onClick={() => setStep('tactics')}
-          className="px-12 text-lg"
+          className="rounded-none font-bold tracking-wider uppercase text-sm px-8 h-11 disabled:opacity-30"
         >
           Configure Tactics →
         </Button>
