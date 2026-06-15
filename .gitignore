@@ -52,3 +52,18 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# AI-related folders and logs
+/.zscripts/
+/agent-ctx/
+/tool-results/
+/upload/
+
+# SQLite databases
+/db/
+
+# Root level JSON data/scraped files
+/*.json
+!/package.json
+!/tsconfig.json
+!/components.json
