@@ -34,6 +34,9 @@ interface CoachStore {
   addSubstitution: (team: 'A' | 'B', sub: Substitution) => void;
   removeSubstitution: (team: 'A' | 'B', subId: string) => void;
   autoFillLineup: (team: 'A' | 'B') => void;
+  swapPlayerIn: (team: 'A' | 'B', slotIndex: number, playerId: string) => void;
+  swapPlayerOut: (team: 'A' | 'B', slotIndex: number) => void;
+  swapPlayers: (team: 'A' | 'B', slotIndex1: number, slotIndex2: number) => void;
 
   // Simulation
   matchResult: MatchState | null;
@@ -183,6 +186,58 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       .filter(p => !newStarting11.includes(p.id))
       .map(p => p.id);
     const newLineup = { ...currentLineup, starting11: newStarting11, subs };
+    set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
+  },
+
+  // Swap a bench player into a specific starting slot
+  swapPlayerIn: (team, slotIndex, playerId) => {
+    const state = get();
+    const currentLineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const starting11 = [...currentLineup.starting11];
+    const subs = [...currentLineup.subs];
+
+    if (slotIndex < 0 || slotIndex >= starting11.length) return;
+    const currentPlayerId = starting11[slotIndex];
+
+    // Remove incoming player from bench
+    const benchIdx = subs.indexOf(playerId);
+    if (benchIdx !== -1) subs.splice(benchIdx, 1);
+    // Move current player to bench
+    if (currentPlayerId) subs.push(currentPlayerId);
+    // Place new player in starting slot
+    starting11[slotIndex] = playerId;
+
+    const newLineup = { ...currentLineup, starting11, subs };
+    set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
+  },
+
+  // Remove a player from starting slot to bench
+  swapPlayerOut: (team, slotIndex) => {
+    const state = get();
+    const currentLineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const starting11 = [...currentLineup.starting11];
+    const subs = [...currentLineup.subs];
+
+    if (slotIndex < 0 || slotIndex >= starting11.length) return;
+    const removedPlayerId = starting11[slotIndex];
+    if (removedPlayerId) subs.push(removedPlayerId);
+    starting11[slotIndex] = '';
+
+    const newLineup = { ...currentLineup, starting11, subs };
+    set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
+  },
+
+  // Swap two players between starting slots
+  swapPlayers: (team, slotIndex1, slotIndex2) => {
+    const state = get();
+    const currentLineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const starting11 = [...currentLineup.starting11];
+
+    const temp = starting11[slotIndex1];
+    starting11[slotIndex1] = starting11[slotIndex2];
+    starting11[slotIndex2] = temp;
+
+    const newLineup = { ...currentLineup, starting11 };
     set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
   },
 
