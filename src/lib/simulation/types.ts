@@ -93,7 +93,10 @@ export type MatchEventType =
   | 'injury'
   | 'half_time'
   | 'full_time'
-  | 'kick_off';
+  | 'kick_off'
+  | 'penalty_shootout_start'
+  | 'penalty_shootout_kick'
+  | 'penalty_shootout_finish';
 
 export interface MatchEvent {
   minute: number;
@@ -134,8 +137,9 @@ export interface MatchState {
   events: MatchEvent[];
   isPlaying: boolean;
   isFinished: boolean;
-  currentPhase: 'first_half' | 'half_time' | 'second_half' | 'full_time';
+  currentPhase: 'first_half' | 'half_time' | 'second_half' | 'full_time' | 'extra_time_first' | 'extra_time_half' | 'extra_time_second' | 'extra_time_finished' | 'penalty_shootout';
   ballHolderTeamId: string;
+  shootoutScore?: [number, number];
 }
 
 export interface MatchConfig {

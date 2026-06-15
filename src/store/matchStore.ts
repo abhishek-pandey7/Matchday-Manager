@@ -12,6 +12,7 @@ import {
 import { TEAMS } from '@/lib/simulation/data';
 import { getAutoLineup, FORMATIONS } from '@/lib/simulation/formations';
 import { simulateMatch, predictMatch, generateAnimationFrames, applyLiveSubstitution } from '@/lib/simulation/engine';
+import { useTournamentStore } from './tournamentStore';
 
 type AppStep = 'setup' | 'tactics' | 'simulation';
 
@@ -411,8 +412,12 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set({ step: 'simulation', matchResult: null, animationFrames: [], prediction: null, simulationSeed: seed });
 
     setTimeout(() => {
-      const result = simulateMatch(teamA, teamB, state.lineupA, state.lineupB, seed);
-      const frames = generateAnimationFrames(teamA, teamB, state.lineupA, state.lineupB, seed);
+      const isTournament = useTournamentStore.getState().mode === 'tournament';
+      const currentRound = useTournamentStore.getState().currentRound;
+      const isKO = isTournament && currentRound !== 'group_stage';
+
+      const result = simulateMatch(teamA, teamB, state.lineupA, state.lineupB, seed, isKO);
+      const frames = generateAnimationFrames(teamA, teamB, state.lineupA, state.lineupB, seed, isKO);
       const prediction = predictMatch(teamA, teamB, state.lineupA, state.lineupB, 100);
 
       set({
@@ -421,7 +426,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         currentFrame: 0,
         eventLog: result.events,
         filteredEvents: result.events.filter(e =>
-          ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off'].includes(e.type)
+          ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off', 'penalty_shootout_start', 'penalty_shootout_kick', 'penalty_shootout_finish'].includes(e.type)
         ),
         prediction,
         isAnimating: false,
@@ -431,7 +436,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   playAnimation: () => set({ isAnimating: true }),
   pauseAnimation: () => set({ isAnimating: false }),
-  setFrame: (frame) => set({ currentFrame: Math.max(0, Math.min(90, frame)) }),
+  setFrame: (frame) => set({ currentFrame: Math.max(0, Math.min(get().animationFrames.length - 1 || 90, frame)) }),
   setAnimationSpeed: (speed) => set({ animationSpeed: speed }),
 
   liveSub: (team, playerOutId, playerInId) => {
@@ -474,7 +479,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       allEvents.push(...frame.events);
     }
     const filtered = allEvents.filter(e =>
-      ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off'].includes(e.type)
+      ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off', 'penalty_shootout_start', 'penalty_shootout_kick', 'penalty_shootout_finish'].includes(e.type)
     );
 
     set({

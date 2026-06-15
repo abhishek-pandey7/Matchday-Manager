@@ -654,7 +654,8 @@ export function simulateMatch(
   teamB: Team,
   lineupA: Lineup,
   lineupB: Lineup,
-  seed: number = Date.now()
+  seed: number = Date.now(),
+  isKnockout: boolean = false
 ): MatchState {
   const rng = new SeededRandom(seed);
   const fatigue = new Map<string, number>();
@@ -736,7 +737,13 @@ export function simulateMatch(
   });
 
   // ─── Minute-by-Minute Simulation ────────────────────────────────
-  for (let minute = 1; minute <= 90; minute++) {
+  let matchLength = 90;
+  let hasGoneToET = false;
+  let hasGoneToPenalties = false;
+  let shootoutScore: [number, number] | undefined = undefined;
+  let currentPhase: MatchState['currentPhase'] = 'first_half';
+
+  for (let minute = 1; minute <= matchLength; minute++) {
     // Fatigue increases - more for high-tempo teams
     const tempoFactorA = 1 + (lineupA.tactics.tempo - 50) / 500;
     const tempoFactorB = 1 + (lineupB.tactics.tempo - 50) / 500;
@@ -1203,7 +1210,7 @@ export function simulateMatch(
       }
     }
 
-    // Half time
+    // Half time and phase updates
     if (minute === 45) {
       events.push({
         minute: 45,
@@ -1213,18 +1220,194 @@ export function simulateMatch(
         x: 50,
         y: 50,
       });
+      currentPhase = 'half_time';
+    } else if (minute === 46) {
+      currentPhase = 'second_half';
+    }
+
+    // Trigger Extra Time at minute 90 if tied in a knockout match
+    if (minute === 90) {
+      if (isKnockout && score[0] === score[1]) {
+        matchLength = 120;
+        hasGoneToET = true;
+        currentPhase = 'extra_time_first';
+        events.push({
+          minute: 90,
+          type: 'full_time',
+          teamId: '',
+          description: `Full time! The score is level at ${score[0]}-${score[1]}. We proceed to Extra Time!`,
+          x: 50,
+          y: 50,
+        });
+        events.push({
+          minute: 90.1,
+          type: 'kick_off',
+          teamId: teamA.id,
+          description: `Extra Time begins!`,
+          x: 50,
+          y: 50,
+        });
+
+        // Generate extra time goals
+        const etGoalsA = poissonRandom(expA * 30 / 90, rng);
+        const etGoalsB = poissonRandom(expB * 30 / 90, rng);
+        for (let i = 0; i < etGoalsA; i++) {
+          goalMinutesA.push(rng.int(91, 120));
+        }
+        for (let i = 0; i < etGoalsB; i++) {
+          goalMinutesB.push(rng.int(91, 120));
+        }
+        goalMinutesA.sort((a, b) => a - b);
+        goalMinutesB.sort((a, b) => a - b);
+      }
+    }
+
+    if (minute === 105) {
+      currentPhase = 'extra_time_half';
+      events.push({
+        minute: 105,
+        type: 'half_time',
+        teamId: '',
+        description: `Half time in Extra Time. ${teamA.name} ${score[0]} - ${score[1]} ${teamB.name}`,
+        x: 50,
+        y: 50,
+      });
+    } else if (minute === 106) {
+      currentPhase = 'extra_time_second';
+    }
+
+    if (minute === 120) {
+      currentPhase = 'extra_time_finished';
+      events.push({
+        minute: 120,
+        type: 'full_time',
+        teamId: '',
+        description: `Full time in Extra Time! The score remains level at ${score[0]}-${score[1]}. We proceed to a Penalty Shootout!`,
+        x: 50,
+        y: 50,
+      });
+
+      if (score[0] === score[1]) {
+        hasGoneToPenalties = true;
+      }
     }
   }
 
-  // Full time
-  events.push({
-    minute: 90,
-    type: 'full_time',
-    teamId: '',
-    description: `Full time! ${teamA.name} ${score[0]} - ${score[1]} ${teamB.name}`,
-    x: 50,
-    y: 50,
-  });
+  // Penalty Shootout Simulation
+  let finalMinute = matchLength;
+  if (hasGoneToPenalties) {
+    currentPhase = 'penalty_shootout';
+    events.push({
+      minute: 120.1,
+      type: 'penalty_shootout_start',
+      teamId: '',
+      description: 'Penalty Shootout begins! The players gather at the center circle.',
+      x: 50,
+      y: 50,
+    });
+
+    const teamAPenHistory: boolean[] = [];
+    const teamBPenHistory: boolean[] = [];
+    let shootoutScoreA = 0;
+    let shootoutScoreB = 0;
+    let shootoutWinnerId = '';
+
+    const playersA = currentLineupA.starting11.map(id => teamA.players.find(p => p.id === id)).filter(Boolean) as Player[];
+    const playersB = currentLineupB.starting11.map(id => teamB.players.find(p => p.id === id)).filter(Boolean) as Player[];
+    const gkA = playersA.find(p => p.position === 'GK') || teamA.players[0];
+    const gkB = playersB.find(p => p.position === 'GK') || teamB.players[0];
+
+    const takersA = playersA.filter(p => p.position !== 'GK').sort((a, b) => b.shooting - a.shooting);
+    const takersB = playersB.filter(p => p.position !== 'GK').sort((a, b) => b.shooting - a.shooting);
+
+    let turnIdx = 0;
+    let shootoutMinute = 121;
+    let isSuddenDeath = false;
+
+    while (true) {
+      const teamIdx = turnIdx % 2;
+      const currentTeam = teamIdx === 0 ? teamA : teamB;
+      const opponentGK = teamIdx === 0 ? gkB : gkA;
+      const takers = teamIdx === 0 ? takersA : takersB;
+      const taker = takers[Math.floor(turnIdx / 2) % takers.length];
+
+      const shootingAttr = taker ? taker.shooting : 70;
+      const gkDefAttr = opponentGK ? opponentGK.defending : 75;
+      const successRate = 0.76 + (shootingAttr - 75) * 0.004 - (gkDefAttr - 75) * 0.003;
+      const scored = rng.chance(successRate);
+
+      if (teamIdx === 0) {
+        if (scored) shootoutScoreA++;
+        teamAPenHistory.push(scored);
+      } else {
+        if (scored) shootoutScoreB++;
+        teamBPenHistory.push(scored);
+      }
+
+      const shotX = teamIdx === 0 ? 88 : 12;
+      const shotY = 50;
+
+      events.push({
+        minute: shootoutMinute,
+        type: 'penalty_shootout_kick',
+        teamId: currentTeam.id,
+        playerId: taker?.id,
+        description: `Penalty round ${Math.floor(turnIdx / 2) + 1}: ${taker?.name || 'Unknown'} for ${currentTeam.name}... ${scored ? 'SCORED!' : 'MISSED/SAVED!'} (${shootoutScoreA} - ${shootoutScoreB})`,
+        x: shotX,
+        y: shotY,
+      });
+
+      const teamARemaining = isSuddenDeath ? 1 : 5 - teamAPenHistory.length;
+      const teamBRemaining = isSuddenDeath ? 1 : 5 - teamBPenHistory.length;
+
+      if (shootoutScoreA > shootoutScoreB + teamBRemaining && !isSuddenDeath) {
+        shootoutWinnerId = teamA.id;
+        break;
+      }
+      if (shootoutScoreB > shootoutScoreA + teamARemaining && !isSuddenDeath) {
+        shootoutWinnerId = teamB.id;
+        break;
+      }
+
+      if (teamAPenHistory.length >= 5 && teamBPenHistory.length >= 5) {
+        if (shootoutScoreA !== shootoutScoreB) {
+          shootoutWinnerId = shootoutScoreA > shootoutScoreB ? teamA.id : teamB.id;
+          break;
+        } else {
+          isSuddenDeath = true;
+        }
+      }
+
+      turnIdx++;
+      shootoutMinute++;
+    }
+
+    shootoutScore = [shootoutScoreA, shootoutScoreB];
+    finalMinute = shootoutMinute;
+
+    events.push({
+      minute: finalMinute + 0.1,
+      type: 'penalty_shootout_finish',
+      teamId: shootoutWinnerId,
+      description: `Penalty Shootout finished! ${shootoutWinnerId === teamA.id ? teamA.name : teamB.name} wins the shootout ${shootoutScoreA} - ${shootoutScoreB}!`,
+      x: 50,
+      y: 50,
+    });
+    
+    // Increment final minute to account for finish event
+    finalMinute += 1;
+  } else {
+    // Normal or Extra Time match ends
+    events.push({
+      minute: matchLength,
+      type: 'full_time',
+      teamId: '',
+      description: `Full time! ${teamA.name} ${score[0]} - ${score[1]} ${teamB.name}`,
+      x: 50,
+      y: 50,
+    });
+    currentPhase = hasGoneToET ? 'extra_time_finished' : 'full_time';
+  }
 
   // Calculate possession
   const totalPoss = possessionCount[0] + possessionCount[1] || 1;
@@ -1238,12 +1421,11 @@ export function simulateMatch(
   const teamBPositions = generatePlayerPositions(teamB, currentLineupB, ballX, ballY, false, lineupB.tactics);
 
   // ─── Enhanced Pass Accuracy Calculation ─────────────────────────
-  // Based on actual simulated completion rates, not just a formula
   const passAccA = passes[0] > 0 ? Math.round((passesCompleted[0] / passes[0]) * 100) : Math.round(65 + strengthA.midfield / 10);
   const passAccB = passes[1] > 0 ? Math.round((passesCompleted[1] / passes[1]) * 100) : Math.round(65 + strengthB.midfield / 10);
 
   return {
-    minute: 90,
+    minute: finalMinute,
     score,
     possession,
     shots,
@@ -1261,8 +1443,9 @@ export function simulateMatch(
     events,
     isPlaying: false,
     isFinished: true,
-    currentPhase: 'full_time',
+    currentPhase,
     ballHolderTeamId,
+    shootoutScore,
   };
 }
 
@@ -1599,9 +1782,10 @@ export function generateAnimationFrames(
   teamB: Team,
   lineupA: Lineup,
   lineupB: Lineup,
-  seed: number = Date.now()
+  seed: number = Date.now(),
+  isKnockout: boolean = false
 ): MatchState[] {
-  const fullMatch = simulateMatch(teamA, teamB, lineupA, lineupB, seed);
+  const fullMatch = simulateMatch(teamA, teamB, lineupA, lineupB, seed, isKnockout);
   const frames: MatchState[] = [];
   const sortedEvents = [...fullMatch.events].sort((a, b) => a.minute - b.minute);
 
@@ -1680,7 +1864,7 @@ export function generateAnimationFrames(
   }
 
   // Track possession per minute
-  for (let m = 1; m <= 90; m++) {
+  for (let m = 1; m <= fullMatch.minute; m++) {
     const mEvents = sortedEvents.filter(e => Math.floor(e.minute) === m && e.teamId);
     if (mEvents.length > 0) {
       const lastEvent = mEvents[mEvents.length - 1];
@@ -1701,7 +1885,7 @@ export function generateAnimationFrames(
 
   // Redistribute passes across minuteStats
   let redistributedPasses: [number, number] = [0, 0];
-  for (let m = 0; m <= 90; m++) {
+  for (let m = 0; m <= fullMatch.minute; m++) {
     const mStats = minuteStats.get(m);
     if (mStats) {
       const prevM = m - 1;
@@ -1712,7 +1896,7 @@ export function generateAnimationFrames(
       const possRatioA = cumPossCount[0] / totalPossCount;
       const possRatioB = cumPossCount[1] / totalPossCount;
       const minutesWithEvents = sortedEvents.filter(e => Math.floor(e.minute) === m).length > 0;
-      const basePassesPerMinute = Math.round((targetPassesA + targetPassesB) / 90);
+      const basePassesPerMinute = Math.round((targetPassesA + targetPassesB) / fullMatch.minute);
 
       const scaledPassesA = Math.round(eventPassesA * passRatioA) + (minutesWithEvents ? Math.round(basePassesPerMinute * possRatioA * 0.7) : 0);
       const scaledPassesB = Math.round(eventPassesB * passRatioB) + (minutesWithEvents ? Math.round(basePassesPerMinute * possRatioB * 0.7) : 0);
@@ -1754,7 +1938,9 @@ export function generateAnimationFrames(
   let prevTeamAPositions: PlayerPosition[] | null = null;
   let prevTeamBPositions: PlayerPosition[] | null = null;
 
-  for (let minute = 0; minute <= 90; minute++) {
+  let framePhase: MatchState['currentPhase'] = 'first_half';
+
+  for (let minute = 0; minute <= fullMatch.minute; minute++) {
     const ballPos = ballPositionMap.get(minute) || ballPositionMap.get(minute - 1) || { x: 50, y: 50, teamId: teamA.id };
     const stats = minuteStats.get(minute);
 
@@ -1791,21 +1977,42 @@ export function generateAnimationFrames(
       Math.round((cumPossCount[1] / totalPoss) * 100),
     ];
 
+    // Determine current phase from events
+    const minuteEvents = sortedEvents.filter(e => Math.floor(e.minute) === minute);
+    const halfTimeEvt = minuteEvents.find(e => e.type === 'half_time');
+    const fullTimeEvt = minuteEvents.find(e => e.type === 'full_time');
+    const etStartEvt = minuteEvents.find(e => e.description.includes('Extra Time begins'));
+    const penStartEvt = minuteEvents.find(e => e.type === 'penalty_shootout_start');
+
+    if (penStartEvt || minute > 120) {
+      framePhase = 'penalty_shootout';
+    } else if (minute > 105) {
+      framePhase = 'extra_time_second';
+    } else if (halfTimeEvt && minute > 90) {
+      framePhase = 'extra_time_half';
+    } else if (etStartEvt || (minute > 90 && minute <= 105)) {
+      framePhase = 'extra_time_first';
+    } else if (fullTimeEvt && minute === 90) {
+      framePhase = 'full_time';
+    } else if (minute > 45) {
+      framePhase = 'second_half';
+    } else if (halfTimeEvt && minute === 45) {
+      framePhase = 'half_time';
+    }
+
     // Generate player positions with enhanced movement and jitter
     const teamAPositions = generatePlayerPositionsWithJitter(
       teamA, lineupA, ballPos.x, ballPos.y, true, lineupA.tactics, rng,
-      prevTeamAPositions
+      prevTeamAPositions, framePhase
     );
     const teamBPositions = generatePlayerPositionsWithJitter(
       teamB, lineupB, ballPos.x, ballPos.y, false, lineupB.tactics, rng,
-      prevTeamBPositions
+      prevTeamBPositions, framePhase
     );
 
     // Store for next frame smoothing
     prevTeamAPositions = teamAPositions;
     prevTeamBPositions = teamBPositions;
-
-    const minuteEvents = sortedEvents.filter(e => Math.floor(e.minute) === minute);
 
     frames.push({
       minute,
@@ -1825,9 +2032,10 @@ export function generateAnimationFrames(
       teamBPositions,
       events: minuteEvents,
       isPlaying: true,
-      isFinished: minute >= 90,
-      currentPhase: minute < 45 ? 'first_half' : minute === 45 ? 'half_time' : minute < 90 ? 'second_half' : 'full_time',
+      isFinished: minute >= fullMatch.minute,
+      currentPhase: framePhase,
       ballHolderTeamId: ballPos.teamId,
+      shootoutScore: fullMatch.shootoutScore,
     });
   }
 
@@ -1843,8 +2051,55 @@ function generatePlayerPositionsWithJitter(
   isTeamA: boolean,
   tactics: TacticalSettings,
   rng: SeededRandom,
-  prevPositions: PlayerPosition[] | null
+  prevPositions: PlayerPosition[] | null,
+  phase?: MatchState['currentPhase']
 ): PlayerPosition[] {
+  if (phase === 'penalty_shootout') {
+    const positions: PlayerPosition[] = [];
+    const isTeamAKicking = ballX > 50;
+    const starting11 = lineup.starting11;
+
+    let outfieldCount = 0;
+    for (let i = 0; i < Math.min(11, starting11.length); i++) {
+      const playerId = starting11[i];
+      if (!playerId) continue;
+      const player = team.players.find(p => p.id === playerId);
+      if (!player) continue;
+
+      let px = 50;
+      let py = 50;
+
+      if (player.position === 'GK') {
+        px = isTeamA ? 5 : 95;
+        if (isTeamA) {
+          py = isTeamAKicking ? 35 : 50;
+        } else {
+          py = isTeamAKicking ? 50 : 65;
+        }
+      } else {
+        const isKickingSide = (isTeamA && isTeamAKicking) || (!isTeamA && !isTeamAKicking);
+        if (isKickingSide && outfieldCount === 0) {
+          px = isTeamA ? 80 : 20;
+          py = 50;
+        } else {
+          px = 50 + (isTeamA ? -2 : 2);
+          py = 20 + outfieldCount * 6;
+        }
+        outfieldCount++;
+      }
+
+      positions.push({
+        playerId,
+        baseX: px,
+        baseY: py,
+        currentX: px,
+        currentY: py,
+        hasBall: false,
+      });
+    }
+    return positions;
+  }
+
   const formation = FORMATIONS[lineup.formation];
   if (!formation) return [];
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useCoachStore } from '@/store/matchStore';
+import { useTournamentStore } from '@/store/tournamentStore';
 import { TEAMS } from '@/lib/simulation/data';
 import { MatchEventType, MatchEvent } from '@/lib/simulation/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,6 +86,7 @@ export default function SimulationPage() {
   const teamA = TEAMS.find(t => t.id === store.teamAId)!;
   const teamB = TEAMS.find(t => t.id === store.teamBId)!;
 
+  const maxFrameIdx = store.animationFrames.length - 1 || 90;
   const frame = store.animationFrames[store.currentFrame];
   const result = store.matchResult;
 
@@ -102,7 +104,8 @@ export default function SimulationPage() {
     const speed = useCoachStore.getState().animationSpeed;
     animRef.current = setInterval(() => {
       const state = useCoachStore.getState();
-      if (state.currentFrame >= 90) {
+      const maxF = state.animationFrames.length - 1 || 90;
+      if (state.currentFrame >= maxF) {
         useCoachStore.getState().pauseAnimation();
         stopAnimation();
         return;
@@ -133,14 +136,14 @@ export default function SimulationPage() {
       store.pauseAnimation();
       stopAnimation();
     } else {
-      if (store.currentFrame >= 90) store.setFrame(0);
+      if (store.currentFrame >= maxFrameIdx) store.setFrame(0);
       startPlayback();
     }
   };
 
   const goToStart = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(0); };
-  const goToEnd = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(90); };
-  const stepForward = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(Math.min(90, store.currentFrame + 1)); };
+  const goToEnd = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(maxFrameIdx); };
+  const stepForward = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(Math.min(maxFrameIdx, store.currentFrame + 1)); };
   const stepBack = () => { stopAnimation(); store.pauseAnimation(); store.setFrame(Math.max(0, store.currentFrame - 1)); };
 
   const handleLiveSub = () => {
@@ -190,8 +193,8 @@ export default function SimulationPage() {
   };
   const momentum = possessionFlow();
 
-  const isHalfTime = frame.currentPhase === 'half_time';
-  const isFullTime = frame.currentPhase === 'full_time';
+  const isHalfTime = frame.currentPhase === 'half_time' || frame.currentPhase === 'extra_time_half';
+  const isFullTime = frame.isFinished;
 
   return (
     <div className="space-y-4">
@@ -221,7 +224,17 @@ export default function SimulationPage() {
               <div className="text-right">
                 <div className="font-bold text-sm md:text-base">{teamA.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {frame.currentPhase === 'first_half' ? '1st Half' : isHalfTime ? 'Half Time' : frame.currentPhase === 'second_half' ? '2nd Half' : 'Full Time'}
+                  {
+                    frame.currentPhase === 'first_half' ? '1st Half' :
+                    frame.currentPhase === 'half_time' ? 'Half Time' :
+                    frame.currentPhase === 'second_half' ? '2nd Half' :
+                    frame.currentPhase === 'extra_time_first' ? 'ET 1st Half' :
+                    frame.currentPhase === 'extra_time_half' ? 'ET Half Time' :
+                    frame.currentPhase === 'extra_time_second' ? 'ET 2nd Half' :
+                    frame.currentPhase === 'extra_time_finished' ? 'ET Finished' :
+                    frame.currentPhase === 'penalty_shootout' ? 'Penalties' :
+                    'Full Time'
+                  }
                 </div>
               </div>
             </div>
@@ -317,11 +330,11 @@ export default function SimulationPage() {
                 value={[store.currentFrame]}
                 onValueChange={([v]) => { stopAnimation(); store.pauseAnimation(); store.setFrame(v); }}
                 min={0}
-                max={90}
+                max={maxFrameIdx}
                 step={1}
                 className="flex-1"
               />
-              <span className="text-xs text-muted-foreground w-8">90&apos;</span>
+              <span className="text-xs text-muted-foreground w-8">{maxFrameIdx}&apos;</span>
             </div>
 
             <div className="flex items-center justify-center gap-2">
@@ -761,11 +774,79 @@ export default function SimulationPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Reset button */}
-      <div className="flex justify-center">
-        <Button variant="outline" onClick={store.resetMatch} className="gap-2">
-          <RotateCcw className="w-4 h-4" /> New Match
-        </Button>
+      {/* Penalty Shootout Scorecard */}
+      {frame.currentPhase === 'penalty_shootout' && (
+        <Card className="rounded-none border-2 border-primary bg-muted/10">
+          <CardHeader className="py-2.5 border-b border-border/60">
+            <CardTitle className="text-xs font-bold tracking-widest uppercase text-center flex items-center justify-center gap-1.5">
+              <Trophy className="w-4 h-4 text-primary" /> Penalty Shootout
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {/* Shootout Score Display */}
+            <div className="text-center">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">
+                PENALTY SHOOTOUT SCORE
+              </div>
+              <div className="text-4xl font-black tracking-tight tabular-nums">
+                {frame.shootoutScore ? `${frame.shootoutScore[0]} - ${frame.shootoutScore[1]}` : '0 - 0'}
+              </div>
+            </div>
+
+            {/* List of Kicks */}
+            <div className="max-h-40 overflow-y-auto space-y-1 pr-1 font-mono text-[11px]">
+              {store.eventLog
+                .filter(e => e.type === 'penalty_shootout_kick' && Math.floor(e.minute) <= store.currentFrame)
+                .map((e, idx) => {
+                  const isA = e.teamId === teamA.id;
+                  const scored = e.description.includes('SCORED');
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex items-center justify-between p-1.5 border border-border/20 ${
+                        scored ? 'bg-green-500/5' : 'bg-red-500/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{isA ? teamA.flag : teamB.flag}</span>
+                        <span className="font-bold">{isA ? teamA.shortName : teamB.shortName}</span>
+                      </div>
+                      <span className="truncate max-w-[200px] text-muted-foreground">
+                        {e.description.split(':').pop()?.trim()}
+                      </span>
+                      <span className={scored ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>
+                        {scored ? '[✓]' : '[✗]'}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reset/Submit button */}
+      <div className="flex justify-center mt-4">
+        {useTournamentStore.getState().mode === 'tournament' ? (
+          <Button
+            disabled={!isFullTime}
+            onClick={() => {
+              const score = frame.score;
+              const shootoutScore = frame.shootoutScore;
+              const events = store.eventLog;
+              useTournamentStore.getState().submitMatchResult(score, shootoutScore, events);
+              store.resetMatch();
+            }}
+            className="rounded-none font-bold text-xs tracking-wider uppercase text-background"
+            style={{ backgroundColor: 'var(--primary)' }}
+          >
+            SUBMIT RESULT & RETURN TO HUB
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={store.resetMatch} className="gap-2 rounded-none">
+            <RotateCcw className="w-4 h-4" /> New Match
+          </Button>
+        )}
       </div>
     </div>
   );
