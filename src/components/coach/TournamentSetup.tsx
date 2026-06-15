@@ -66,10 +66,10 @@ export default function TournamentSetup() {
         </div>
         <h2 className="text-5xl md:text-6xl font-black leading-none tracking-tighter uppercase">
           CHOOSE YOUR<br />
-          <span style={{ color: 'var(--primary)' }}>NATION(S)</span>
+          <span style={{ color: 'var(--primary)' }}>NATION</span>
         </h2>
         <p className="text-xs text-muted-foreground max-w-lg mt-2 uppercase tracking-wide">
-          Select one or more teams to coach. You will make tactical adjustments, set starting lineups, and watch simulated pitch play for all user-controlled matches. CPU matches are simulated instantly.
+          Select a nation to coach. You will make tactical adjustments, set starting lineups, and watch simulated pitch play for your matches. CPU matches are simulated instantly.
         </p>
       </div>
 
@@ -153,7 +153,11 @@ export default function TournamentSetup() {
       {/* Footer bar with sticky stats & CTA */}
       <div className="border-t border-border pt-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
-          Selected Nations: <span className="font-bold text-foreground" style={{ color: store.userTeamIds.length > 0 ? 'var(--primary)' : 'inherit' }}>{store.userTeamIds.length} / 48</span>
+          Selected Nation: <span className="font-bold text-foreground animate-pulse" style={{ color: store.userTeamIds.length > 0 ? 'var(--primary)' : 'inherit' }}>
+            {store.userTeamIds.length > 0 
+              ? TEAMS.find(t => t.id === store.userTeamIds[0])?.name.toUpperCase() 
+              : 'NONE'}
+          </span>
         </div>
 
         <div className="flex gap-2">
@@ -170,7 +174,7 @@ export default function TournamentSetup() {
             style={{ backgroundColor: 'var(--primary)' }}
             onClick={() => store.initTournament()}
           >
-            PROCEED TO DRAW ({store.userTeamIds.length} TEAMS)
+            PROCEED TO DRAW
           </Button>
         </div>
       </div>

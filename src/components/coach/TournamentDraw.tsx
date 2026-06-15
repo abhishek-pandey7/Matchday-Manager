@@ -143,12 +143,11 @@ export default function TournamentDraw() {
               return (
                 <div
                   key={potIdx}
-                  className={`border p-3 rounded-none relative ${
-                    isCurrentPot ? 'border-primary bg-primary/5' : 'border-border/40 bg-muted/5'
-                  }`}
+                  className={`border p-3 rounded-none relative ${isCurrentPot ? 'border-primary bg-primary/5' : 'border-border/40 bg-muted/5'
+                    }`}
                 >
                   {isCurrentPot && (
-                    <span 
+                    <span
                       className="absolute top-0 right-0 px-1.5 py-0.5 text-[8px] font-mono font-bold text-background uppercase"
                       style={{ backgroundColor: 'var(--primary)' }}
                     >
@@ -164,11 +163,10 @@ export default function TournamentDraw() {
                       return (
                         <div
                           key={teamId}
-                          className={`px-1.5 py-0.5 text-[10px] flex items-center gap-1 border border-border/40 ${
-                            isDrawn
+                          className={`px-1.5 py-0.5 text-[10px] flex items-center gap-1 border border-border/40 ${isDrawn
                               ? 'line-through opacity-30 bg-muted/10'
                               : 'bg-muted/30 font-bold'
-                          }`}
+                            }`}
                         >
                           <span>{getTeamFlag(teamId)}</span>
                           <span className="font-mono text-[9px] uppercase">{teamId.slice(0, 3)}</span>
@@ -196,11 +194,10 @@ export default function TournamentDraw() {
               return (
                 <div
                   key={groupName}
-                  className={`border rounded-none p-3 transition-all ${
-                    isCurrentGroup
+                  className={`border rounded-none p-3 transition-all ${isCurrentGroup
                       ? 'border-primary bg-primary/5 shadow-md scale-102'
                       : 'border-border/60 bg-muted/10'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between border-b border-border/50 pb-1.5 mb-2">
                     <span className="text-sm font-black tracking-tight">GROUP {groupName}</span>

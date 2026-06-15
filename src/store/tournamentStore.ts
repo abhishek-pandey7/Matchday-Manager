@@ -112,12 +112,7 @@ export const useTournamentStore = create<TournamentState>((set, get) => ({
 
   userTeamIds: [],
   toggleUserTeam: (teamId) => {
-    const current = get().userTeamIds;
-    if (current.includes(teamId)) {
-      set({ userTeamIds: current.filter(id => id !== teamId) });
-    } else {
-      set({ userTeamIds: [...current, teamId] });
-    }
+    set({ userTeamIds: [teamId] });
   },
 
   pots: [],

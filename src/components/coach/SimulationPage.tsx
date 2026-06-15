@@ -226,14 +226,14 @@ export default function SimulationPage() {
                 <div className="text-xs text-muted-foreground">
                   {
                     frame.currentPhase === 'first_half' ? '1st Half' :
-                    frame.currentPhase === 'half_time' ? 'Half Time' :
-                    frame.currentPhase === 'second_half' ? '2nd Half' :
-                    frame.currentPhase === 'extra_time_first' ? 'ET 1st Half' :
-                    frame.currentPhase === 'extra_time_half' ? 'ET Half Time' :
-                    frame.currentPhase === 'extra_time_second' ? 'ET 2nd Half' :
-                    frame.currentPhase === 'extra_time_finished' ? 'ET Finished' :
-                    frame.currentPhase === 'penalty_shootout' ? 'Penalties' :
-                    'Full Time'
+                      frame.currentPhase === 'half_time' ? 'Half Time' :
+                        frame.currentPhase === 'second_half' ? '2nd Half' :
+                          frame.currentPhase === 'extra_time_first' ? 'ET 1st Half' :
+                            frame.currentPhase === 'extra_time_half' ? 'ET Half Time' :
+                              frame.currentPhase === 'extra_time_second' ? 'ET 2nd Half' :
+                                frame.currentPhase === 'extra_time_finished' ? 'ET Finished' :
+                                  frame.currentPhase === 'penalty_shootout' ? 'Penalties' :
+                                    'Full Time'
                   }
                 </div>
               </div>
@@ -372,17 +372,15 @@ export default function SimulationPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => { setSubTeam('A'); setSubOut(''); setSubIn(''); }}
-                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                  subTeam === 'A' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                }`}
+                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${subTeam === 'A' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
               >
                 <span className="mr-1">{teamA.flag}</span> {teamA.name}
               </button>
               <button
                 onClick={() => { setSubTeam('B'); setSubOut(''); setSubIn(''); }}
-                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                  subTeam === 'B' ? 'border-destructive bg-destructive/5' : 'border-border hover:border-destructive/50'
-                }`}
+                className={`flex-1 p-2 rounded-lg border-2 text-sm font-medium transition-all ${subTeam === 'B' ? 'border-destructive bg-destructive/5' : 'border-border hover:border-destructive/50'
+                  }`}
               >
                 <span className="mr-1">{teamB.flag}</span> {teamB.name}
               </button>
@@ -482,20 +480,18 @@ export default function SimulationPage() {
                       return (
                         <div
                           key={`${event.minute}-${event.type}-${i}`}
-                          className={`flex items-start gap-2 p-2 rounded text-sm transition-all ${
-                            EVENT_COLORS[event.type] || 'hover:bg-muted/50'
-                          } ${event.type === 'goal' ? 'font-medium' : ''}`}
+                          className={`flex items-start gap-2 p-2 rounded text-sm transition-all ${EVENT_COLORS[event.type] || 'hover:bg-muted/50'
+                            } ${event.type === 'goal' ? 'font-medium' : ''}`}
                         >
                           <Badge variant="outline" className="text-[10px] font-mono shrink-0 w-10 justify-center">
                             {Math.floor(event.minute)}&apos;
                           </Badge>
                           <span className="shrink-0 text-base">{EVENT_ICONS[event.type]}</span>
                           {teamBadge && (
-                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              isTeamA
+                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${isTeamA
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                 : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                            }`}>
+                              }`}>
                               {teamBadge}
                             </span>
                           )}
@@ -611,8 +607,8 @@ export default function SimulationPage() {
                     {frame.score[0] > frame.score[1]
                       ? `${teamA.name} ${isFullTime ? 'wins!' : 'leads!'}`
                       : frame.score[0] < frame.score[1]
-                      ? `${teamB.name} ${isFullTime ? 'wins!' : 'leads!'}`
-                      : 'Level!'}
+                        ? `${teamB.name} ${isFullTime ? 'wins!' : 'leads!'}`
+                        : 'Level!'}
                   </div>
                 )}
               </div>
@@ -803,9 +799,8 @@ export default function SimulationPage() {
                   return (
                     <div
                       key={idx}
-                      className={`flex items-center justify-between p-1.5 border border-border/20 ${
-                        scored ? 'bg-green-500/5' : 'bg-red-500/5'
-                      }`}
+                      className={`flex items-center justify-between p-1.5 border border-border/20 ${scored ? 'bg-green-500/5' : 'bg-red-500/5'
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <span>{isA ? teamA.flag : teamB.flag}</span>

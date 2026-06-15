@@ -106,7 +106,7 @@ export default function Home() {
                   World Cup 2026
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed uppercase">
-                  Coach one or more nations through the full World Cup. Simulate the random group draw, manage standings, run CPU fixtures, and guide your team through knockouts.
+                  Coach a nation through the full World Cup. Simulate the random group draw, manage standings, run CPU fixtures, and guide your team through knockouts.
                 </p>
               </div>
               <div className="text-xs font-bold tracking-wider uppercase group-hover:underline flex items-center gap-1.5">

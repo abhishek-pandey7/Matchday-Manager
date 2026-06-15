@@ -104,7 +104,11 @@ export default function TournamentHub() {
             {getRoundLabel(store.currentRound, store.groupMatchday)}
           </h3>
           <p className="text-[11px] text-muted-foreground uppercase font-mono">
-            {store.userTeamIds.length} User Teams Active: {store.userTeamIds.map(id => getTeam(id).shortName).join(', ')}
+            Coached Nation: {store.userTeamIds.length > 0 ? (
+              <span className="font-bold text-foreground">
+                {getTeam(store.userTeamIds[0]).flag} {getTeam(store.userTeamIds[0]).name.toUpperCase()}
+              </span>
+            ) : 'NONE'}
           </p>
         </div>
 
