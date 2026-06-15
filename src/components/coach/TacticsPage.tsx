@@ -765,15 +765,19 @@ export default function TacticsPage() {
   const issues = team ? validateLineup(lineup, team) : [];
   const hasErrors = issues.some(i => i.type === 'error');
 
-  // Position counts
-  const defCount = filledPlayers.filter(p =>
-    ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(p.position)
+  // Position counts — based on FORMATION SLOTS (not player natural position)
+  // This matches how the validation counts positions
+  const defCount = formationSlots.filter((slot, i) =>
+    lineup.starting11[i] && lineup.starting11[i] !== '' &&
+    ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(slot.position)
   ).length;
-  const midCount = filledPlayers.filter(p =>
-    ['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(p.position)
+  const midCount = formationSlots.filter((slot, i) =>
+    lineup.starting11[i] && lineup.starting11[i] !== '' &&
+    ['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(slot.position)
   ).length;
-  const fwdCount = filledPlayers.filter(p =>
-    ['ST', 'CF', 'LW', 'RW'].includes(p.position)
+  const fwdCount = formationSlots.filter((slot, i) =>
+    lineup.starting11[i] && lineup.starting11[i] !== '' &&
+    ['ST', 'CF', 'LW', 'RW'].includes(slot.position)
   ).length;
 
   // All players grouped by position category
@@ -1434,24 +1438,31 @@ export default function TacticsPage() {
           </CardContent>
         </Card>
 
-        {/* Navigation */}
-        <div className="flex justify-center gap-4 pt-2 pb-4">
-          <Button variant="outline" size="lg" onClick={() => store.setStep('setup')}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back
-          </Button>
-          <Button
-            size="lg"
-            onClick={() => store.startSimulation()}
-            className="px-10"
-            disabled={!canSimulate}
-            title={
-              !canSimulate
-                ? 'Both teams need valid lineups (11 players, min 3 defenders, 1 GK)'
-                : 'Start match simulation'
-            }
-          >
-            <Play className="w-4 h-4 mr-2" /> Simulate Match
-          </Button>
+        {/* Navigation — sticky on mobile */}
+        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t py-3 px-4 -mx-4 sm:mx-0 sm:border-0 sm:py-2 sm:static sm:bg-transparent sm:backdrop-blur-none">
+          {!canSimulate && (
+            <div className="text-center text-xs text-red-500 mb-2 flex items-center justify-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {!validA && !validB
+                ? 'Both teams need valid lineups'
+                : !validA
+                ? `${teamA?.name || 'Team A'} lineup incomplete — need 11 players with min 3 DEF & 1 GK`
+                : `${teamB?.name || 'Team B'} lineup incomplete — need 11 players with min 3 DEF & 1 GK`}
+            </div>
+          )}
+          <div className="flex justify-center gap-4">
+            <Button variant="outline" size="lg" onClick={() => store.setStep('setup')}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            </Button>
+            <Button
+              size="lg"
+              onClick={() => store.startSimulation()}
+              className="px-10 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              disabled={!canSimulate}
+            >
+              <Play className="w-4 h-4 mr-2" /> Simulate Match
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -27,48 +27,59 @@ const FORWARD_POSITIONS: Position[] = ['ST', 'CF', 'LW', 'RW'];
 
 export function validateLineup(lineup: Lineup, team: Team | undefined): FormationIssue[] {
   const issues: FormationIssue[] = [];
+  const formationSlots = FORMATIONS[lineup.formation];
+
+  // Get starting players (non-empty slots)
   const startingPlayers = lineup.starting11
     .map(id => id ? team?.players.find(p => p.id === id) : null)
     .filter(Boolean);
 
+  // Count filled vs empty slots
+  const filledSlots = lineup.starting11.filter(id => id && id !== '').length;
+
   // Check total players
-  if (startingPlayers.length < 11) {
-    issues.push({ type: 'error', message: `Only ${startingPlayers.length}/11 players selected` });
+  if (filledSlots < 11) {
+    issues.push({ type: 'error', message: `Only ${filledSlots}/11 players selected` });
+  }
+
+  // Count positions based on FORMATION SLOT positions (not player natural positions)
+  // When a player is assigned to a slot, they play that position
+  let gkSlots = 0, defSlots = 0, midSlots = 0, fwdSlots = 0;
+  for (let i = 0; i < lineup.starting11.length && i < formationSlots.length; i++) {
+    if (!lineup.starting11[i] || lineup.starting11[i] === '') continue; // empty slot
+    const slotPos = formationSlots[i].position;
+    if (slotPos === 'GK') gkSlots++;
+    else if (DEFENDER_POSITIONS.includes(slotPos)) defSlots++;
+    else if (MIDFIELD_POSITIONS.includes(slotPos)) midSlots++;
+    else if (FORWARD_POSITIONS.includes(slotPos)) fwdSlots++;
   }
 
   // Check GK
-  const gkCount = startingPlayers.filter(p => p!.position === 'GK').length;
-  if (gkCount === 0) {
+  if (gkSlots === 0) {
     issues.push({ type: 'error', message: 'No goalkeeper selected' });
-  } else if (gkCount > 1) {
-    issues.push({ type: 'warning', message: 'Multiple goalkeepers in starting XI' });
   }
 
   // Check defenders (min 3)
-  const defCount = startingPlayers.filter(p => DEFENDER_POSITIONS.includes(p!.position)).length;
-  if (defCount < 3) {
-    issues.push({ type: 'error', message: `Only ${defCount} defenders — minimum 3 required` });
+  if (defSlots < 3) {
+    issues.push({ type: 'error', message: `Only ${defSlots} defenders — minimum 3 required` });
   }
 
   // Check midfielders (min 2)
-  const midCount = startingPlayers.filter(p => MIDFIELD_POSITIONS.includes(p!.position)).length;
-  if (midCount < 2) {
-    issues.push({ type: 'warning', message: `Only ${midCount} midfielders — may struggle in possession` });
+  if (midSlots < 2) {
+    issues.push({ type: 'warning', message: `Only ${midSlots} midfielders — may struggle in possession` });
   }
 
   // Check forwards (min 1)
-  const fwdCount = startingPlayers.filter(p => FORWARD_POSITIONS.includes(p!.position)).length;
-  if (fwdCount === 0) {
+  if (fwdSlots === 0) {
     issues.push({ type: 'warning', message: 'No forwards selected — may struggle to score' });
   }
 
   // Check compatibility - players playing out of position
-  const formationSlots = FORMATIONS[lineup.formation];
   let outOfPosition = 0;
-  for (let i = 0; i < lineup.starting11.length; i++) {
+  for (let i = 0; i < lineup.starting11.length && i < formationSlots.length; i++) {
     const player = team?.players.find(p => p.id === lineup.starting11[i]);
-    const slotPos = formationSlots[i]?.position;
-    if (player && slotPos) {
+    const slotPos = formationSlots[i].position;
+    if (player && lineup.starting11[i]) {
       // Check if player is severely out of position (e.g., GK playing ST)
       if (player.position === 'GK' && slotPos !== 'GK') {
         issues.push({ type: 'error', message: `Goalkeeper ${player.name} playing as ${slotPos}` });
