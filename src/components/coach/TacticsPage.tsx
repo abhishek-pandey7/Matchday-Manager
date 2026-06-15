@@ -559,9 +559,11 @@ function SquadPlayerCard({
 function BenchDropZone({
   teamKey,
   children,
+  className,
 }: {
   teamKey: 'A' | 'B';
   children: React.ReactNode;
+  className?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `bench-area-${teamKey}`,
@@ -576,7 +578,7 @@ function BenchDropZone({
       ref={setNodeRef}
       className={`transition-all rounded-lg ${
         isOver ? 'ring-2 ring-yellow-400 bg-yellow-400/5' : ''
-      }`}
+      } ${className || ''}`}
     >
       {children}
     </div>
@@ -1008,9 +1010,9 @@ export default function TacticsPage() {
         </Card>
 
         {/* Main Content: Pitch + Squad Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Football Pitch */}
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          {/* Left Column: Pitch + Validation + Tactics */}
+          <div className="lg:col-span-2 space-y-4">
             {/* Click-away overlay for picker */}
             {pickerSlot !== null && (
               <div className="fixed inset-0 z-20" onClick={() => setPickerSlot(null)} />
@@ -1046,15 +1048,261 @@ export default function TacticsPage() {
             </div>
 
             {/* Validation Banner below pitch */}
-            <div className="mt-3">
-              <ValidationBanner issues={issues} />
-            </div>
+            <ValidationBanner issues={issues} />
+
+            {/* Tactics Panel (Collapsible) - Moved inside the left column */}
+            <Card>
+              <CardContent className="pt-4 pb-3">
+                <button
+                  className="w-full flex items-center justify-between text-sm font-medium py-1"
+                  onClick={() => setShowTactics(!showTactics)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    ⚙️ Tactics &amp; Mentality
+                  </span>
+                  {showTactics ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </button>
+
+                {showTactics && (
+                  <div className="space-y-4 mt-3">
+                    {/* Mentality */}
+                    <div>
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="font-medium">Mentality</span>
+                      </div>
+                      <div className="grid grid-cols-5 gap-1">
+                        {MENTALITIES.map(m => (
+                          <button
+                            key={m.value}
+                            onClick={() => store.setTactics(teamKey, { mentality: m.value })}
+                            className={`py-1.5 px-1 rounded-md text-[11px] border transition-all ${
+                              lineup.tactics.mentality === m.value
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-muted/50 border-border hover:bg-muted'
+                            }`}
+                          >
+                            {m.icon} {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sliders */}
+                    {[
+                      {
+                        key: 'pressingIntensity' as const,
+                        label: 'Pressing',
+                        low: 'Low',
+                        high: 'High',
+                        icon: <Zap className="w-3 h-3" />,
+                      },
+                      {
+                        key: 'tempo' as const,
+                        label: 'Tempo',
+                        low: 'Slow',
+                        high: 'Fast',
+                        icon: <Gauge className="w-3 h-3" />,
+                      },
+                      {
+                        key: 'width' as const,
+                        label: 'Width',
+                        low: 'Narrow',
+                        high: 'Wide',
+                        icon: <Swords className="w-3 h-3" />,
+                      },
+                      {
+                        key: 'defensiveLine' as const,
+                        label: 'Def. Line',
+                        low: 'Deep',
+                        high: 'High',
+                        icon: <Shield className="w-3 h-3" />,
+                      },
+                    ].map(({ key, label, low, high, icon }) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="flex items-center gap-1 font-medium">
+                            {icon} {label}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {low} → {high}
+                          </span>
+                        </div>
+                        <Slider
+                          value={[lineup.tactics[key] as number]}
+                          onValueChange={([v]) => store.setTactics(teamKey, { [key]: v })}
+                          min={0}
+                          max={100}
+                          step={5}
+                          className="py-1"
+                        />
+                      </div>
+                    ))}
+
+                    <Separator />
+
+                    {/* Substitutions */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium flex items-center gap-1.5">
+                          <ArrowRightLeft className="w-3.5 h-3.5" /> Substitutions
+                        </label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowSubDialog(true)}
+                          className="h-7 text-xs"
+                        >
+                          <Plus className="w-3 h-3 mr-1" /> Add Sub
+                        </Button>
+                      </div>
+
+                      {lineup.substitutions.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No substitutions planned.</p>
+                      )}
+
+                      <div className="space-y-1.5">
+                        {lineup.substitutions.map(sub => {
+                          const outPlayer = team.players.find(p => p.id === sub.playerOutId);
+                          const inPlayer = team.players.find(p => p.id === sub.playerInId);
+                          return (
+                            <div
+                              key={sub.id}
+                              className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-xs hover:bg-muted/50 transition-colors"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] font-mono px-1.5 py-0 w-8 justify-center"
+                                >
+                                  {sub.minute}&apos;
+                                </Badge>
+                                <span className="text-red-600 dark:text-red-400 font-medium">
+                                  {outPlayer?.name}
+                                </span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="text-green-600 dark:text-green-400 font-medium">
+                                  {inPlayer?.name}
+                                </span>
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0"
+                                onClick={() => store.removeSubstitution(teamKey, sub.id)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Add Sub Dialog */}
+                      {showSubDialog && (
+                        <div className="mt-3 p-3 rounded-lg border bg-card space-y-2.5">
+                          <Select value={subOut} onValueChange={setSubOut}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Player OFF" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filledPlayers.map(p => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name} ({p.position}) - {p.rating}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <Select value={subIn} onValueChange={setSubIn}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Player ON" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {lineup.subs
+                                .map(id => team.players.find(p => p.id === id))
+                                .filter((p): p is Player => !!p)
+                                .map(p => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name} ({p.position}) - {p.rating}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+
+                          <div>
+                            <label className="text-xs text-muted-foreground">
+                              Minute: {subMinute}&apos;
+                            </label>
+                            <Slider
+                              value={[subMinute]}
+                              onValueChange={([v]) => setSubMinute(v)}
+                              min={46}
+                              max={85}
+                              step={1}
+                              className="py-1"
+                            />
+                          </div>
+
+                          {subOut &&
+                            subIn &&
+                            (() => {
+                              const outP = team.players.find(p => p.id === subOut);
+                              const inP = team.players.find(p => p.id === subIn);
+                              if (!outP || !inP) return null;
+                              const diff = inP.rating - outP.rating;
+                              return (
+                                <div className="text-center text-xs">
+                                  <span className="text-muted-foreground">Rating change: </span>
+                                  <span
+                                    className={
+                                      diff > 0
+                                        ? 'text-green-600 font-bold'
+                                        : diff < 0
+                                        ? 'text-red-600 font-bold'
+                                        : 'font-bold'
+                                    }
+                                  >
+                                    {diff > 0 ? '+' : ''}
+                                    {diff}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs flex-1"
+                              onClick={handleAddSub}
+                            >
+                              Add
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => setShowSubDialog(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Squad Panel */}
-          <div className="lg:col-span-1">
-            <Card className="h-full">
-              <CardContent className="pt-4 pb-3">
+          {/* Right Column: Squad Panel */}
+          <div className="lg:col-span-1 lg:h-full lg:sticky lg:top-20">
+            <Card className="w-full flex flex-col shadow-xl">
+              <CardContent className="pt-4 pb-3 flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold flex items-center gap-1.5">
                     <Users className="w-4 h-4" /> Squad
@@ -1064,9 +1312,9 @@ export default function TacticsPage() {
                   </span>
                 </div>
 
-                <BenchDropZone teamKey={teamKey}>
-                  <ScrollArea className="max-h-[480px]">
-                    <div className="space-y-3 pr-2">
+                <BenchDropZone teamKey={teamKey} className="flex-1 flex flex-col min-h-0">
+                  <ScrollArea className="h-[480px] lg:h-[calc(100vh-280px)] pr-2">
+                    <div className="space-y-3">
                       {/* Goalkeepers */}
                       {groupedPlayers.gk.length > 0 && (
                         <div>
@@ -1189,254 +1437,6 @@ export default function TacticsPage() {
             </Card>
           </div>
         </div>
-
-        {/* Tactics Panel (Collapsible) */}
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <button
-              className="w-full flex items-center justify-between text-sm font-medium py-1"
-              onClick={() => setShowTactics(!showTactics)}
-            >
-              <span className="flex items-center gap-1.5">
-                ⚙️ Tactics &amp; Mentality
-              </span>
-              {showTactics ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-
-            {showTactics && (
-              <div className="space-y-4 mt-3">
-                {/* Mentality */}
-                <div>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="font-medium">Mentality</span>
-                  </div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {MENTALITIES.map(m => (
-                      <button
-                        key={m.value}
-                        onClick={() => store.setTactics(teamKey, { mentality: m.value })}
-                        className={`py-1.5 px-1 rounded-md text-[11px] border transition-all ${
-                          lineup.tactics.mentality === m.value
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-muted/50 border-border hover:bg-muted'
-                        }`}
-                      >
-                        {m.icon} {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Sliders */}
-                {[
-                  {
-                    key: 'pressingIntensity' as const,
-                    label: 'Pressing',
-                    low: 'Low',
-                    high: 'High',
-                    icon: <Zap className="w-3 h-3" />,
-                  },
-                  {
-                    key: 'tempo' as const,
-                    label: 'Tempo',
-                    low: 'Slow',
-                    high: 'Fast',
-                    icon: <Gauge className="w-3 h-3" />,
-                  },
-                  {
-                    key: 'width' as const,
-                    label: 'Width',
-                    low: 'Narrow',
-                    high: 'Wide',
-                    icon: <Swords className="w-3 h-3" />,
-                  },
-                  {
-                    key: 'defensiveLine' as const,
-                    label: 'Def. Line',
-                    low: 'Deep',
-                    high: 'High',
-                    icon: <Shield className="w-3 h-3" />,
-                  },
-                ].map(({ key, label, low, high, icon }) => (
-                  <div key={key}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1 font-medium">
-                        {icon} {label}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {low} → {high}
-                      </span>
-                    </div>
-                    <Slider
-                      value={[lineup.tactics[key] as number]}
-                      onValueChange={([v]) => store.setTactics(teamKey, { [key]: v })}
-                      min={0}
-                      max={100}
-                      step={5}
-                      className="py-1"
-                    />
-                  </div>
-                ))}
-
-                <Separator />
-
-                {/* Substitutions */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium flex items-center gap-1.5">
-                      <ArrowRightLeft className="w-3.5 h-3.5" /> Substitutions
-                    </label>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSubDialog(true)}
-                      className="h-7 text-xs"
-                    >
-                      <Plus className="w-3 h-3 mr-1" /> Add Sub
-                    </Button>
-                  </div>
-
-                  {lineup.substitutions.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No substitutions planned.</p>
-                  )}
-
-                  <div className="space-y-1.5">
-                    {lineup.substitutions.map(sub => {
-                      const outPlayer = team.players.find(p => p.id === sub.playerOutId);
-                      const inPlayer = team.players.find(p => p.id === sub.playerInId);
-                      return (
-                        <div
-                          key={sub.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-xs hover:bg-muted/50 transition-colors"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <Badge
-                              variant="outline"
-                              className="text-[9px] font-mono px-1.5 py-0 w-8 justify-center"
-                            >
-                              {sub.minute}&apos;
-                            </Badge>
-                            <span className="text-red-600 dark:text-red-400 font-medium">
-                              {outPlayer?.name}
-                            </span>
-                            <span className="text-muted-foreground">→</span>
-                            <span className="text-green-600 dark:text-green-400 font-medium">
-                              {inPlayer?.name}
-                            </span>
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0"
-                            onClick={() => store.removeSubstitution(teamKey, sub.id)}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Add Sub Dialog */}
-                  {showSubDialog && (
-                    <div className="mt-3 p-3 rounded-lg border bg-card space-y-2.5">
-                      <Select value={subOut} onValueChange={setSubOut}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Player OFF" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {filledPlayers.map(p => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} ({p.position}) - {p.rating}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select value={subIn} onValueChange={setSubIn}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Player ON" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {lineup.subs
-                            .map(id => team.players.find(p => p.id === id))
-                            .filter((p): p is Player => !!p)
-                            .map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name} ({p.position}) - {p.rating}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-
-                      <div>
-                        <label className="text-xs text-muted-foreground">
-                          Minute: {subMinute}&apos;
-                        </label>
-                        <Slider
-                          value={[subMinute]}
-                          onValueChange={([v]) => setSubMinute(v)}
-                          min={46}
-                          max={85}
-                          step={1}
-                          className="py-1"
-                        />
-                      </div>
-
-                      {subOut &&
-                        subIn &&
-                        (() => {
-                          const outP = team.players.find(p => p.id === subOut);
-                          const inP = team.players.find(p => p.id === subIn);
-                          if (!outP || !inP) return null;
-                          const diff = inP.rating - outP.rating;
-                          return (
-                            <div className="text-center text-xs">
-                              <span className="text-muted-foreground">Rating change: </span>
-                              <span
-                                className={
-                                  diff > 0
-                                    ? 'text-green-600 font-bold'
-                                    : diff < 0
-                                    ? 'text-red-600 font-bold'
-                                    : 'font-bold'
-                                }
-                              >
-                                {diff > 0 ? '+' : ''}
-                                {diff}
-                              </span>
-                            </div>
-                          );
-                        })()}
-
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs flex-1"
-                          onClick={handleAddSub}
-                        >
-                          Add
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() => setShowSubDialog(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Navigation — sticky on mobile */}
         <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t py-3 px-4 -mx-4 sm:mx-0 sm:border-0 sm:py-2 sm:static sm:bg-transparent sm:backdrop-blur-none">
