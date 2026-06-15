@@ -1,0 +1,602 @@
+     1→     1→     1→'use client';
+     2→     2→     2→
+     3→     3→     3→import { useState, useCallback, useRef, useEffect } from 'react';
+     4→     4→     4→import { useCoachStore, validateLineup, FormationIssue } from '@/store/matchStore';
+     5→     5→     5→import { TEAMS } from '@/lib/simulation/data';
+     6→     6→     6→import { FormationType, TacticalSettings, Substitution, Player, Position } from '@/lib/simulation/types';
+     7→     7→     7→import { FORMATIONS, FormationPosition } from '@/lib/simulation/formations';
+     8→     8→     8→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     9→     9→     9→import { Button } from '@/components/ui/button';
+    10→    10→    10→import { Badge } from '@/components/ui/badge';
+    11→    11→    11→import { Slider } from '@/components/ui/slider';
+    12→    12→    12→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    13→    13→    13→import { Separator } from '@/components/ui/separator';
+    14→    14→    14→import { Play, ArrowLeft, Plus, X, Shield, Swords, Zap, Gauge, Users, RotateCcw, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, GripVertical } from 'lucide-react';
+    15→    15→    15→
+    16→    16→    16→const FORMATION_LIST: FormationType[] = [
+    17→    17→    17→  '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1', '4-1-4-1',
+    18→    18→    18→];
+    19→    19→    19→
+    20→    20→    20→const MENTALITIES: { value: TacticalSettings['mentality']; label: string; icon: string }[] = [
+    21→    21→    21→  { value: 'defensive', label: 'Defensive', icon: '🛡️' },
+    22→    22→    22→  { value: 'cautious', label: 'Cautious', icon: '🔶' },
+    23→    23→    23→  { value: 'balanced', label: 'Balanced', icon: '⚖️' },
+    24→    24→    24→  { value: 'attacking', label: 'Attacking', icon: '⚡' },
+    25→    25→    25→  { value: 'very_attacking', label: 'All Out', icon: '🔥' },
+    26→    26→    26→];
+    27→    27→    27→
+    28→    28→    28→function positionColor(pos: string): string {
+    29→    29→    29→  if (['GK'].includes(pos)) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300';
+    30→    30→    30→  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-300';
+    31→    31→    31→  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-300';
+    32→    32→    32→  return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-300';
+    33→    33→    33→}
+    34→    34→    34→
+    35→    35→    35→function positionBgColor(pos: string): string {
+    36→    36→    36→  if (['GK'].includes(pos)) return 'bg-yellow-500';
+    37→    37→    37→  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500';
+    38→    38→    38→  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500';
+    39→    39→    39→  return 'bg-red-500';
+    40→    40→    40→}
+    41→    41→    41→
+    42→    42→    42→function positionBorderColor(pos: string): string {
+    43→    43→    43→  if (['GK'].includes(pos)) return 'border-yellow-400';
+    44→    44→    44→  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'border-blue-400';
+    45→    45→    45→  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'border-green-400';
+    46→    46→    46→  return 'border-red-400';
+    47→    47→    47→}
+    48→    48→    48→
+    49→    49→    49→// Compatibility: which real positions can play in a formation slot
+    50→    50→    50→const SLOT_COMPATIBILITY: Record<Position, Position[]> = {
+    51→    51→    51→  'GK': ['GK'],
+    52→    52→    52→  'CB': ['CB'],
+    53→    53→    53→  'LB': ['LB', 'LWB'],
+    54→    54→    54→  'RB': ['RB', 'RWB'],
+    55→    55→    55→  'LWB': ['LWB', 'LB'],
+    56→    56→    56→  'RWB': ['RWB', 'RB'],
+    57→    57→    57→  'CDM': ['CDM', 'CM', 'CB'],
+    58→    58→    58→  'CM': ['CM', 'CDM', 'CAM'],
+    59→    59→    59→  'CAM': ['CAM', 'CM', 'CF'],
+    60→    60→    60→  'LM': ['LM', 'LW', 'LB'],
+    61→    61→    61→  'RM': ['RM', 'RW', 'RB'],
+    62→    62→    62→  'LW': ['LW', 'LM', 'CF', 'ST'],
+    63→    63→    63→  'RW': ['RW', 'RM', 'CF', 'ST'],
+    64→    64→    64→  'CF': ['CF', 'ST', 'CAM'],
+    65→    65→    65→  'ST': ['ST', 'CF', 'LW', 'RW'],
+    66→    66→    66→};
+    67→    67→    67→
+    68→    68→    68→function isCompatible(playerPos: Position, slotPos: Position): boolean {
+    69→    69→    69→  return SLOT_COMPATIBILITY[slotPos]?.includes(playerPos) ?? false;
+    70→    70→    70→}
+    71→    71→    71→
+    72→    72→    72→// Get position category for color coding
+    73→    73→    73→function getPositionCategory(pos: Position): 'gk' | 'def' | 'mid' | 'fwd' {
+    74→    74→    74→  if (pos === 'GK') return 'gk';
+    75→    75→    75→  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'def';
+    76→    76→    76→  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'mid';
+    77→    77→    77→  return 'fwd';
+    78→    78→    78→}
+    79→    79→    79→
+    80→    80→    80→// ─── Formation Validation Display ─────────────────────────────────
+    81→    81→    81→function ValidationIndicator({ issues }: { issues: FormationIssue[] }) {
+    82→    82→    82→  if (issues.length === 0) {
+    83→    83→    83→    return (
+    84→    84→    84→      <div className="flex items-center gap-1 text-green-600 text-xs">
+    85→    85→    85→        <CheckCircle2 className="w-3.5 h-3.5" />
+    86→    86→    86→        <span>Valid lineup</span>
+    87→    87→    87→      </div>
+    88→    88→    88→    );
+    89→    89→    89→  }
+    90→    90→    90→
+    91→    91→    91→  const errors = issues.filter(i => i.type === 'error');
+    92→    92→    92→  const warnings = issues.filter(i => i.type === 'warning');
+    93→    93→    93→
+    94→    94→    94→  return (
+    95→    95→    95→    <div className="space-y-1">
+    96→    96→    96→      {errors.map((issue, i) => (
+    97→    97→    97→        <div key={i} className="flex items-center gap-1 text-red-600 text-xs">
+    98→    98→    98→          <AlertTriangle className="w-3 h-3 shrink-0" />
+    99→    99→    99→          <span>{issue.message}</span>
+   100→   100→   100→        </div>
+   101→   101→   101→      ))}
+   102→   102→   102→      {warnings.map((issue, i) => (
+   103→   103→   103→        <div key={i} className="flex items-center gap-1 text-amber-600 text-xs">
+   104→   104→   104→          <AlertTriangle className="w-3 h-3 shrink-0" />
+   105→   105→   105→          <span>{issue.message}</span>
+   106→   106→   106→        </div>
+   107→   107→   107→      ))}
+   108→   108→   108→    </div>
+   109→   109→   109→  );
+   110→   110→   110→}
+   111→   111→   111→
+   112→   112→   112→// ─── Pitch Component ────────────────────────────────────────────
+   113→   113→   113→function FootballPitch({
+   114→   114→   114→  teamKey,
+   115→   115→   115→}: {
+   116→   116→   116→  teamKey: 'A' | 'B';
+   117→   117→   117→}) {
+   118→   118→   118→  const store = useCoachStore();
+   119→   119→   119→  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
+   120→   120→   120→  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
+   121→   121→   121→  const team = TEAMS.find(t => t.id === teamId);
+   122→   122→   122→
+   123→   123→   123→  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+   124→   124→   124→  const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+   125→   125→   125→  const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
+   126→   126→   126→
+   127→   127→   127→  if (!team) return null;
+   128→   128→   128→
+   129→   129→   129→  const formationSlots = FORMATIONS[lineup.formation];
+   130→   130→   130→  const startingPlayers = lineup.starting11.map(id =>
+   131→   131→   131→    id ? team.players.find(p => p.id === id) : null
+   132→   132→   132→  );
+   133→   133→   133→  const benchPlayers = lineup.subs.map(id => team.players.find(p => p.id === id)).filter(Boolean) as Player[];
+   134→   134→   134→
+   135→   135→   135→  // Calculate avg rating
+   136→   136→   136→  const filledPlayers = startingPlayers.filter(Boolean) as Player[];
+   137→   137→   137→  const avgRating = filledPlayers.length > 0
+   138→   138→   138→    ? Math.round(filledPlayers.reduce((sum, p) => sum + p.rating, 0) / filledPlayers.length)
+   139→   139→   139→    : 0;
+   140→   140→   140→
+   141→   141→   141→  // Formation validation
+   142→   142→   142→  const issues = validateLineup(lineup, team);
+   143→   143→   143→  const hasErrors = issues.some(i => i.type === 'error');
+   144→   144→   144→
+   145→   145→   145→  // Count position categories - LWB/RWB count as midfielders for formation display
+   146→   146→   146→  // (in 3-5-2, the wingbacks are part of the midfield 5)
+   147→   147→   147→  const defCount = filledPlayers.filter(p => ['CB', 'LB', 'RB'].includes(p.position)).length;
+   148→   148→   148→  const midCount = filledPlayers.filter(p => ['CDM', 'CM', 'CAM', 'LM', 'RM', 'LWB', 'RWB'].includes(p.position)).length;
+   149→   149→   149→  const fwdCount = filledPlayers.filter(p => ['ST', 'CF', 'LW', 'RW'].includes(p.position)).length;
+   150→   150→   150→
+   151→   151→   151→  // Drag handlers
+   152→   152→   152→  const handleDragStart = useCallback((e: React.DragEvent, sourceType: 'pitch' | 'bench', sourceIndex: number) => {
+   153→   153→   153→    e.dataTransfer.setData('application/json', JSON.stringify({ sourceType, sourceIndex }));
+   154→   154→   154→    e.dataTransfer.effectAllowed = 'move';
+   155→   155→   155→    if (sourceType === 'pitch') {
+   156→   156→   156→      setDraggingSlot(sourceIndex);
+   157→   157→   157→    }
+   158→   158→   158→  }, []);
+   159→   159→   159→
+   160→   160→   160→  const handleDragEnd = useCallback(() => {
+   161→   161→   161→    setDraggingSlot(null);
+   162→   162→   162→    setDragOverSlot(null);
+   163→   163→   163→  }, []);
+   164→   164→   164→
+   165→   165→   165→  const handleDragOver = useCallback((e: React.DragEvent, slotIndex: number) => {
+   166→   166→   166→    e.preventDefault();
+   167→   167→   167→    e.dataTransfer.dropEffect = 'move';
+   168→   168→   168→    setDragOverSlot(slotIndex);
+   169→   169→   169→  }, []);
+   170→   170→   170→
+   171→   171→   171→  const handleDragLeave = useCallback(() => {
+   172→   172→   172→    setDragOverSlot(null);
+   173→   173→   173→  }, []);
+   174→   174→   174→
+   175→   175→   175→  const handleDrop = useCallback((e: React.DragEvent, targetSlotIndex: number) => {
+   176→   176→   176→    e.preventDefault();
+   177→   177→   177→    setDragOverSlot(null);
+   178→   178→   178→    setDraggingSlot(null);
+   179→   179→   179→
+   180→   180→   180→    try {
+   181→   181→   181→      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+   182→   182→   182→
+   183→   183→   183→      if (data.sourceType === 'bench') {
+   184→   184→   184→        // Bench player dropped onto a pitch slot — swap in
+   185→   185→   185→        const benchPlayerId = lineup.subs[data.sourceIndex];
+   186→   186→   186→        if (benchPlayerId) {
+   187→   187→   187→          store.swapPlayerIn(teamKey, targetSlotIndex, benchPlayerId);
+   188→   188→   188→        }
+   189→   189→   189→      } else if (data.sourceType === 'pitch') {
+   190→   190→   190→        // Pitch player dragged to another pitch slot — move player to new position
+   191→   191→   191→        if (data.sourceIndex !== targetSlotIndex) {
+   192→   192→   192→          store.movePlayerToSlot(teamKey, data.sourceIndex, targetSlotIndex);
+   193→   193→   193→        }
+   194→   194→   194→      }
+   195→   195→   195→    } catch {}
+   196→   196→   196→  }, [lineup, store, teamKey]);
+   197→   197→   197→
+   198→   198→   198→  const handleBenchDragOver = useCallback((e: React.DragEvent) => {
+   199→   199→   199→    e.preventDefault();
+   200→   200→   200→    e.dataTransfer.dropEffect = 'move';
+   201→   201→   201→  }, []);
+   202→   202→   202→
+   203→   203→   203→  const handleBenchDrop = useCallback((e: React.DragEvent, benchIndex: number) => {
+   204→   204→   204→    e.preventDefault();
+   205→   205→   205→    setDraggingSlot(null);
+   206→   206→   206→    try {
+   207→   207→   207→      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+   208→   208→   208→      if (data.sourceType === 'pitch') {
+   209→   209→   209→        store.swapPlayerOut(teamKey, data.sourceIndex);
+   210→   210→   210→      }
+   211→   211→   211→    } catch {}
+   212→   212→   212→  }, [store, teamKey]);
+   213→   213→   213→
+   214→   214→   214→  // Pick from bench for a specific slot
+   215→   215→   215→  const handlePickForSlot = useCallback((slotIndex: number, playerId: string) => {
+   216→   216→   216→    store.swapPlayerIn(teamKey, slotIndex, playerId);
+   217→   217→   217→    setPickerSlot(null);
+   218→   218→   218→  }, [store, teamKey]);
+   219→   219→   219→
+   220→   220→   220→  // Get compatible bench players for a slot
+   221→   221→   221→  const getCompatibleBench = useCallback((slotIndex: number) => {
+   222→   222→   222→    const slotPos = formationSlots[slotIndex]?.position;
+   223→   223→   223→    if (!slotPos) return benchPlayers;
+   224→   224→   224→    const compatible = benchPlayers.filter(p => isCompatible(p.position, slotPos));
+   225→   225→   225→    return compatible.length > 0 ? compatible : benchPlayers;
+   226→   226→   226→  }, [benchPlayers, formationSlots]);
+   227→   227→   227→
+   228→   228→   228→  return (
+   229→   229→   229→    <div className="space-y-3">
+   230→   230→   230→      {/* Team header */}
+   231→   231→   231→      <div className="flex items-center gap-2 mb-2">
+   232→   232→   232→        <span className="text-xl">{team.flag}</span>
+   233→   233→   233→        <div
+   234→   234→   234→          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
+   235→   235→   235→          style={{ backgroundColor: team.color, color: team.textColor }}
+   236→   236→   236→        >
+   237→   237→   237→          {team.shortName.substring(0, 2)}
+   238→   238→   238→        </div>
+   239→   239→   239→        <span className="font-bold text-lg">{team.name}</span>
+   240→   240→   240→        <Badge variant="outline" className="ml-1">OVR {team.overallRating}</Badge>
+   241→   241→   241→        <Badge variant="secondary" className="ml-auto">Avg XI: {avgRating}</Badge>
+   242→   242→   242→      </div>
+   243→   243→   243→
+   244→   244→   244→      {/* Formation selector */}
+   245→   245→   245→      <div className="flex flex-wrap gap-1.5">
+   246→   246→   246→        {FORMATION_LIST.map(f => (
+   247→   247→   247→          <button
+   248→   248→   248→            key={f}
+   249→   249→   249→            onClick={() => store.setFormation(teamKey, f)}
+   250→   250→   250→            className={`py-1 px-2.5 rounded-md text-sm font-mono border transition-all ${
+   251→   251→   251→              lineup.formation === f
+   252→   252→   252→                ? 'bg-primary text-primary-foreground border-primary'
+   253→   253→   253→                : 'bg-muted/50 border-border hover:bg-muted'
+   254→   254→   254→            }`}
+   255→   255→   255→          >
+   256→   256→   256→            {f}
+   257→   257→   257→          </button>
+   258→   258→   258→        ))}
+   259→   259→   259→        <button
+   260→   260→   260→          onClick={() => store.autoFillLineup(teamKey)}
+   261→   261→   261→          className="py-1 px-2.5 rounded-md text-sm border border-dashed border-muted-foreground/50 hover:bg-muted/50 transition-all flex items-center gap-1"
+   262→   262→   262→          title="Auto-fill best XI"
+   263→   263→   263→        >
+   264→   264→   264→          <RotateCcw className="w-3 h-3" /> Auto
+   265→   265→   265→        </button>
+   266→   266→   266→      </div>
+   267→   267→   267→
+   268→   268→   268→      {/* Position count indicators */}
+   269→   269→   269→      <div className="flex items-center gap-2 text-xs">
+   270→   270→   270→        <span className="flex items-center gap-1">
+   271→   271→   271→          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CB')}`} />
+   272→   272→   272→          Def: {defCount} {defCount < 3 && <span className="text-red-500 font-bold">(min 3)</span>}
+   273→   273→   273→        </span>
+   274→   274→   274→        <span className="flex items-center gap-1">
+   275→   275→   275→          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CM')}`} />
+   276→   276→   276→          Mid: {midCount}
+   277→   277→   277→        </span>
+   278→   278→   278→        <span className="flex items-center gap-1">
+   279→   279→   279→          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('ST')}`} />
+   280→   280→   280→          Fwd: {fwdCount}
+   281→   281→   281→        </span>
+   282→   282→   282→        <span className="text-muted-foreground ml-auto">{filledPlayers.length}/11</span>
+   283→   283→   283→      </div>
+   284→   284→   284→
+   285→   285→   285→      {/* Validation */}
+   286→   286→   286→      {issues.length > 0 && <ValidationIndicator issues={issues} />}
+   287→   287→   287→
+   288→   288→   288→      {/* Football pitch */}
+   289→   289→   289→      <div className="relative w-full aspect-[1.6/1] rounded-xl overflow-hidden border-2 border-green-700/40 shadow-lg"
+   290→   290→   290→        style={{
+   291→   291→   291→          background: 'linear-gradient(180deg, #1a6e2e 0%, #228b3a 15%, #1a6e2e 30%, #228b3a 45%, #1a6e2e 60%, #228b3a 75%, #1a6e2e 100%)',
+   292→   292→   292→        }}
+   293→   293→   293→      >
+   294→   294→   294→        {/* Pitch markings */}
+   295→   295→   295→        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 62.5" fill="none" preserveAspectRatio="none">
+   296→   296→   296→          <rect x="2" y="2" width="96" height="58.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   297→   297→   297→          <line x1="50" y1="2" x2="50" y2="60.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   298→   298→   298→          <circle cx="50" cy="31.25" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   299→   299→   299→          <circle cx="50" cy="31.25" r="0.5" fill="rgba(255,255,255,0.3)" />
+   300→   300→   300→          <rect x="2" y="13" width="14" height="36.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   301→   301→   301→          <rect x="2" y="21" width="6" height="20.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   302→   302→   302→          <circle cx="12" cy="31.25" r="0.4" fill="rgba(255,255,255,0.3)" />
+   303→   303→   303→          <rect x="84" y="13" width="14" height="36.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   304→   304→   304→          <rect x="94" y="21" width="4" height="20.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
+   305→   305→   305→        </svg>
+   306→   306→   306→
+   307→   307→   307→        {/* Players on pitch */}
+   308→   308→   308→        {formationSlots.map((slot, index) => {
+   309→   309→   309→          const player = startingPlayers[index];
+   310→   310→   310→          const isDragOver = dragOverSlot === index;
+   311→   311→   311→          const isPickerOpen = pickerSlot === index;
+   312→   312→   312→          const isDragging = draggingSlot === index;
+   313→   313→   313→
+   314→   314→   314→          // Convert formation x,y (0-100) to pitch positions
+   315→   315→   315→          const px = 4 + (slot.x / 100) * 92;
+   316→   316→   316→          const py = 4 + (slot.y / 100) * 88;
+   317→   317→   317→
+   318→   318→   318→          // Check if player is playing out of position
+   319→   319→   319→          const isOutOfPosition = player && !isCompatible(player.position, slot.position);
+   320→   320→   320→          const isSeverelyOutOfPosition = player && (
+   321→   321→   321→            (player.position === 'GK' && slot.position !== 'GK') ||
+   322→   322→   322→            (['CB', 'LB', 'RB'].includes(player.position) && ['ST', 'LW', 'RW', 'CF'].includes(slot.position)) ||
+   323→   323→   323→            (['ST', 'LW', 'RW', 'CF'].includes(player.position) && ['CB', 'LB', 'RB'].includes(slot.position))
+   324→   324→   324→          );
+   325→   325→   325→
+   326→   326→   326→          return (
+   327→   327→   327→            <div
+   328→   328→   328→              key={index}
+   329→   329→   329→              className="absolute"
+   330→   330→   330→              style={{
+   331→   331→   331→                left: `${px}%`,
+   332→   332→   332→                top: `${py}%`,
+   333→   333→   333→                transform: 'translate(-50%, -50%)',
+   334→   334→   334→                zIndex: isPickerOpen ? 25 : isDragOver ? 30 : 10,
+   335→   335→   335→              }}
+   336→   336→   336→            >
+   337→   337→   337→              {/* Player node */}
+   338→   338→   338→              <div
+   339→   339→   339→                draggable={!!player}
+   340→   340→   340→                onDragStart={player ? (e) => handleDragStart(e, 'pitch', index) : undefined}
+   341→   341→   341→                onDragEnd={handleDragEnd}
+   342→   342→   342→                onDragOver={(e) => handleDragOver(e, index)}
+   343→   343→   343→                onDragLeave={handleDragLeave}
+   344→   344→   344→                onDrop={(e) => handleDrop(e, index)}
+   345→   345→   345→                onClick={() => setPickerSlot(isPickerOpen ? null : index)}
+   346→   346→   346→                className={`
+   347→   347→   347→                  relative cursor-pointer select-none transition-all duration-200
+   348→   348→   348→                  ${isDragOver ? 'scale-125' : ''}
+   349→   349→   349→                  ${isDragging ? 'opacity-40 scale-90' : ''}
+   350→   350→   350→                  ${!player ? 'opacity-70 hover:opacity-100' : 'hover:scale-105'}
+   351→   351→   351→                `}
+   352→   352→   352→              >
+   353→   353→   353→                {/* Player circle */}
+   354→   354→   354→                <div className={`
+   355→   355→   355→                  w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center
+   356→   356→   356→                  border-2 shadow-lg backdrop-blur-sm
+   357→   357→   357→                  ${player
+   358→   358→   358→                    ? isSeverelyOutOfPosition
+   359→   359→   359→                      ? 'border-red-400 border-2 ring-2 ring-red-400/50'
+   360→   360→   360→                      : isOutOfPosition
+   361→   361→   361→                      ? 'border-orange-400 border-2'
+   362→   362→   362→                      : `${positionBorderColor(player.position)} border-2`
+   363→   363→   363→                    : 'border-white/40 border-dashed'
+   364→   364→   364→                  }
+   365→   365→   365→                  ${isDragOver ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-transparent' : ''}
+   366→   366→   366→                  ${isPickerOpen ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
+   367→   367→   367→                `}
+   368→   368→   368→                style={{
+   369→   369→   369→                  backgroundColor: player
+   370→   370→   370→                    ? team.color + 'dd'
+   371→   371→   371→                    : 'rgba(0,0,0,0.4)',
+   372→   372→   372→                }}
+   373→   373→   373→                >
+   374→   374→   374→                  {player ? (
+   375→   375→   375→                    <>
+   376→   376→   376→                      <span className="text-[7px] sm:text-[8px] font-bold leading-none text-white truncate max-w-[40px] sm:max-w-[48px]">
+   377→   377→   377→                        {player.name.length > 10 ? player.name.split(' ').slice(-1)[0]?.substring(0, 8) : player.name}
+   378→   378→   378→                      </span>
+   379→   379→   379→                      <span className="text-[7px] sm:text-[8px] leading-none text-white/80">{player.rating}</span>
+   380→   380→   380→                    </>
+   381→   381→   381→                  ) : (
+   382→   382→   382→                    <Plus className="w-4 h-4 text-white/60" />
+   383→   383→   383→                  )}
+   384→   384→   384→                </div>
+   385→   385→   385→
+   386→   386→   386→                {/* Position label below */}
+   387→   387→   387→                <div className="mt-0.5 text-center">
+   388→   388→   388→                  <span className={`
+   389→   389→   389→                    text-[8px] sm:text-[9px] font-bold px-1 py-0 rounded
+   390→   390→   390→                    ${positionColor(slot.position)} bg-opacity-80 backdrop-blur-sm
+   391→   391→   391→                  `}>
+   392→   392→   392→                    {slot.position}
+   393→   393→   393→                  </span>
+   394→   394→   394→                  {player && player.position !== slot.position && (
+   395→   395→   395→                    <div className="text-[7px] text-muted-foreground/80 mt-0.5 truncate max-w-[48px]">
+   396→   396→   396→                      {player.position}
+   397→   397→   397→                    </div>
+   398→   398→   398→                  )}
+   399→   399→   399→                </div>
+   400→   400→   400→
+   401→   401→   401→                {/* Out of position warning */}
+   402→   402→   402→                {player && isSeverelyOutOfPosition && (
+   403→   403→   403→                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
+   404→   404→   404→                    <AlertTriangle className="w-2 h-2 text-white" />
+   405→   405→   405→                  </div>
+   406→   406→   406→                )}
+   407→   407→   407→                {player && isOutOfPosition && !isSeverelyOutOfPosition && (
+   408→   408→   408→                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+   409→   409→   409→                    <span className="text-[6px] text-white font-bold">!</span>
+   410→   410→   410→                  </div>
+   411→   411→   411→                )}
+   412→   412→   412→
+   413→   413→   413→                {/* Drag grip indicator */}
+   414→   414→   414→                {player && (
+   415→   415→   415→                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-60 transition-opacity">
+   416→   416→   416→                    <GripVertical className="w-3 h-3 text-white" />
+   417→   417→   417→                  </div>
+   418→   418→   418→                )}
+   419→   419→   419→              </div>
+   420→   420→   420→
+   421→   421→   421→              {/* Bench player picker for this slot */}
+   422→   422→   422→              {isPickerOpen && (
+   423→   423→   423→                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-60 max-h-52 overflow-y-auto bg-popover border rounded-lg shadow-xl"
+   424→   424→   424→                  style={{ zIndex: 20 }}
+   425→   425→   425→                  onClick={(e) => e.stopPropagation()}
+   426→   426→   426→                >
+   427→   427→   427→                  <div className="sticky top-0 bg-popover p-2 border-b">
+   428→   428→   428→                    <div className="text-xs font-medium">Add to {slot.position}</div>
+   429→   429→   429→                    <div className="text-[10px] text-muted-foreground">
+   430→   430→   430→                      {getCompatibleBench(index).length} available
+   431→   431→   431→                    </div>
+   432→   432→   432→                  </div>
+   433→   433→   433→                  <div className="p-1">
+   434→   434→   434→                    {getCompatibleBench(index).length === 0 && (
+   435→   435→   435→                      <div className="text-xs text-muted-foreground p-2 text-center">No players available</div>
+   436→   436→   436→                    )}
+   437→   437→   437→                    {getCompatibleBench(index).map(p => (
+   438→   438→   438→                      <button
+   439→   439→   439→                        key={p.id}
+   440→   440→   440→                        onClick={() => handlePickForSlot(index, p.id)}
+   441→   441→   441→                        className={`w-full flex items-center gap-2 p-1.5 rounded text-left hover:bg-muted/50 transition-colors ${
+   442→   442→   442→                          !isCompatible(p.position, slot.position) ? 'opacity-60' : ''
+   443→   443→   443→                        }`}
+   444→   444→   444→                      >
+   445→   445→   445→                        <Badge variant="outline" className={`text-[9px] px-1 py-0 ${positionColor(p.position)}`}>
+   446→   446→   446→                          {p.position}
+   447→   447→   447→                        </Badge>
+   448→   448→   448→                        <span className="text-xs font-medium flex-1 truncate">{p.name}</span>
+   449→   449→   449→                        <Badge variant="secondary" className="text-[9px] px-1 py-0">{p.rating}</Badge>
+   450→   450→   450→                        <Plus className="w-3 h-3 text-muted-foreground" />
+   451→   451→   451→                      </button>
+   452→   452→   452→                    ))}
+   453→   453→   453→                  </div>
+   454→   454→   454→                </div>
+   455→   455→   455→              )}
+   456→   456→   456→            </div>
+   457→   457→   457→          );
+   458→   458→   458→        })}
+   459→   459→   459→
+   460→   460→   460→        {/* Click-away overlay for picker */}
+   461→   461→   461→        {pickerSlot !== null && (
+   462→   462→   462→          <div
+   463→   463→   463→            className="absolute inset-0"
+   464→   464→   464→            onClick={() => setPickerSlot(null)}
+   465→   465→   465→            style={{ zIndex: 9 }}
+   466→   466→   466→          />
+   467→   467→   467→        )}
+   468→   468→   468→      </div>
+   469→   469→   469→
+   470→   470→   470→      {/* Bench */}
+   471→   471→   471→      <div>
+   472→   472→   472→        <div className="flex items-center justify-between mb-1.5">
+   473→   473→   473→          <span className="text-sm font-medium flex items-center gap-1">
+   474→   474→   474→            🪑 Bench ({benchPlayers.length})
+   475→   475→   475→          </span>
+   476→   476→   476→          <span className="text-[10px] text-muted-foreground">Drag to pitch or click + on pitch to add</span>
+   477→   477→   477→        </div>
+   478→   478→   478→        <div
+   479→   479→   479→          className="flex flex-wrap gap-1.5 p-2 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-muted/10 min-h-[40px]"
+   480→   480→   480→          onDragOver={handleBenchDragOver}
+   481→   481→   481→          onDrop={(e) => handleBenchDrop(e, 0)}
+   482→   482→   482→        >
+   483→   483→   483→          {benchPlayers.length === 0 && (
+   484→   484→   484→            <span className="text-xs text-muted-foreground py-2">No players on bench</span>
+   485→   485→   485→          )}
+   486→   486→   486→          {benchPlayers.map((player, benchIdx) => (
+   487→   487→   487→            <div
+   488→   488→   488→              key={player.id}
+   489→   489→   489→              draggable
+   490→   490→   490→              onDragStart={(e) => handleDragStart(e, 'bench', benchIdx)}
+   491→   491→   491→              onDragEnd={handleDragEnd}
+   492→   492→   492→              className="flex items-center gap-1 px-2 py-1.5 rounded-md border bg-card cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-xs"
+   493→   493→   493→            >
+   494→   494→   494→              <GripVertical className="w-3 h-3 text-muted-foreground/50" />
+   495→   495→   495→              <Badge variant="outline" className={`text-[8px] px-1 py-0 ${positionColor(player.position)}`}>
+   496→   496→   496→                {player.position}
+   497→   497→   497→              </Badge>
+   498→   498→   498→              <span className="font-medium max-w-[80px] truncate">{player.name.split(' ').pop()}</span>
+   499→   499→   499→              <Badge variant="secondary" className="text-[8px] px-1 py-0">{player.rating}</Badge>
+   500→   500→   500→            </div>
+   501→   501→   501→          ))}
+   502→   502→   502→        </div>
+   503→   503→   503→      </div>
+   504→   504→   504→    </div>
+   505→   505→   505→  );
+   506→   506→   506→}
+   507→   507→   507→
+   508→   508→   508→// ─── Main Tactics Page ──────────────────────────────────────────
+   509→   509→   509→function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
+   510→   510→   510→  const store = useCoachStore();
+   511→   511→   511→  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
+   512→   512→   512→  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
+   513→   513→   513→  const team = TEAMS.find(t => t.id === teamId);
+   514→   514→   514→
+   515→   515→   515→  const [showSubDialog, setShowSubDialog] = useState(false);
+   516→   516→   516→  const [subOut, setSubOut] = useState('');
+   517→   517→   517→  const [subIn, setSubIn] = useState('');
+   518→   518→   518→  const [subMinute, setSubMinute] = useState(60);
+   519→   519→   519→  const [showTactics, setShowTactics] = useState(false);
+   520→   520→   520→
+   521→   521→   521→  if (!team) return null;
+   522→   522→   522→
+   523→   523→   523→  const startingPlayers = lineup.starting11
+   524→   524→   524→    .map(id => id ? team.players.find(p => p.id === id) : null)
+   525→   525→   525→    .filter(Boolean) as Player[];
+   526→   526→   526→  const benchPlayers = lineup.subs
+   527→   527→   527→    .map(id => team.players.find(p => p.id === id))
+   528→   528→   528→    .filter(Boolean) as Player[];
+   529→   529→   529→
+   530→   530→   530→  const handleAddSub = () => {
+   531→   531→   531→    if (!subOut || !subIn) return;
+   532→   532→   532→    const sub: Substitution = {
+   533→   533→   533→      id: `sub_${Date.now()}`,
+   534→   534→   534→      playerOutId: subOut,
+   535→   535→   535→      playerInId: subIn,
+   536→   536→   536→      minute: subMinute,
+   537→   537→   537→      executed: false,
+   538→   538→   538→    };
+   539→   539→   539→    store.addSubstitution(teamKey, sub);
+   540→   540→   540→    setSubOut('');
+   541→   541→   541→    setSubIn('');
+   542→   542→   542→    setShowSubDialog(false);
+   543→   543→   543→  };
+   544→   544→   544→
+   545→   545→   545→  const avgRating = startingPlayers.length > 0
+   546→   546→   546→    ? Math.round(startingPlayers.reduce((sum, p) => sum + p.rating, 0) / startingPlayers.length)
+   547→   547→   547→    : 0;
+   548→   548→   548→
+   549→   549→   549→  return (
+   550→   550→   550→    <Card className="border-2">
+   551→   551→   551→      <CardContent className="pt-4 space-y-3">
+   552→   552→   552→        {/* Pitch view */}
+   553→   553→   553→        <FootballPitch teamKey={teamKey} />
+   554→   554→   554→
+   555→   555→   555→        <Separator />
+   556→   556→   556→
+   557→   557→   557→        {/* Collapsible tactics */}
+   558→   558→   558→        <div>
+   559→   559→   559→          <button
+   560→   560→   560→            className="w-full flex items-center justify-between text-sm font-medium py-1"
+   561→   561→   561→            onClick={() => setShowTactics(!showTactics)}
+   562→   562→   562→          >
+   563→   563→   563→            <span className="flex items-center gap-1">⚙️ Tactics & Mentality</span>
+   564→   564→   564→            {showTactics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+   565→   565→   565→          </button>
+   566→   566→   566→          {showTactics && (
+   567→   567→   567→            <div className="space-y-3 mt-2">
+   568→   568→   568→              <div>
+   569→   569→   569→                <div className="flex justify-between text-xs mb-1">
+   570→   570→   570→                  <span>Mentality</span>
+   571→   571→   571→                </div>
+   572→   572→   572→                <div className="grid grid-cols-5 gap-1">
+   573→   573→   573→                  {MENTALITIES.map(m => (
+   574→   574→   574→                    <button
+   575→   575→   575→                      key={m.value}
+   576→   576→   576→                      onClick={() => store.setTactics(teamKey, { mentality: m.value })}
+   577→   577→   577→                      className={`py-1 px-1 rounded text-[11px] border transition-all ${
+   578→   578→   578→                        lineup.tactics.mentality === m.value
+   579→   579→   579→                          ? 'bg-primary text-primary-foreground border-primary'
+   580→   580→   580→                          : 'bg-muted/50 border-border hover:bg-muted'
+   581→   581→   581→                      }`}
+   582→   582→   582→                    >
+   583→   583→   583→                      {m.icon} {m.label}
+   584→   584→   584→                    </button>
+   585→   585→   585→                  ))}
+   586→   586→   586→                </div>
+   587→   587→   587→              </div>
+   588→   588→   588→
+   589→   589→   589→              {[
+   590→   590→   590→                { key: 'pressingIntensity', label: 'Pressing', low: 'Low', high: 'High', icon: <Zap className="w-3 h-3" /> },
+   591→   591→   591→                { key: 'tempo', label: 'Tempo', low: 'Slow', high: 'Fast', icon: <Gauge className="w-3 h-3" /> },
+   592→   592→   592→                { key: 'width', label: 'Width', low: 'Narrow', high: 'Wide', icon: <Swords className="w-3 h-3" /> },
+   593→   593→   593→                { key: 'defensiveLine', label: 'Def. Line', low: 'Deep', high: 'High', icon: <Shield className="w-3 h-3" /> },
+   594→   594→   594→              ].map(({ key, label, low, high, icon }) => (
+   595→   595→   595→                <div key={key}>
+   596→   596→   596→                  <div className="flex justify-between text-xs mb-1">
+   597→   597→   597→                    <span className="flex items-center gap-1">{icon} {label}</span>
+   598→   598→   598→                    <span className="text-muted-foreground">{low} → {high}</span>
+   599→   599→   599→                  </div>
+   600→   600→   600→                  <Slider
+
+[showing lines 1-600 of 761; use offset=601 with limit to continue reading]

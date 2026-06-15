@@ -1,23 +1,75 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  DndContext,
+  useDraggable,
+  useDroppable,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { useCoachStore, validateLineup, FormationIssue } from '@/store/matchStore';
 import { TEAMS } from '@/lib/simulation/data';
-import { FormationType, TacticalSettings, Substitution, Player, Position } from '@/lib/simulation/types';
+import {
+  FormationType,
+  TacticalSettings,
+  Substitution,
+  Player,
+  Position,
+} from '@/lib/simulation/types';
 import { FORMATIONS, FormationPosition } from '@/lib/simulation/formations';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Play, ArrowLeft, Plus, X, Shield, Swords, Zap, Gauge, Users, RotateCcw, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, GripVertical } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Play,
+  ArrowLeft,
+  Plus,
+  X,
+  Shield,
+  Swords,
+  Zap,
+  Gauge,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  CheckCircle2,
+  Users,
+  ArrowRightLeft,
+} from 'lucide-react';
+
+// ─── Constants ──────────────────────────────────────────────────────
 
 const FORMATION_LIST: FormationType[] = [
   '4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '5-3-2', '5-4-1', '4-1-4-1',
 ];
 
-const MENTALITIES: { value: TacticalSettings['mentality']; label: string; icon: string }[] = [
+const MENTALITIES: {
+  value: TacticalSettings['mentality'];
+  label: string;
+  icon: string;
+}[] = [
   { value: 'defensive', label: 'Defensive', icon: '🛡️' },
   { value: 'cautious', label: 'Cautious', icon: '🔶' },
   { value: 'balanced', label: 'Balanced', icon: '⚖️' },
@@ -25,65 +77,610 @@ const MENTALITIES: { value: TacticalSettings['mentality']; label: string; icon: 
   { value: 'very_attacking', label: 'All Out', icon: '🔥' },
 ];
 
-function positionColor(pos: string): string {
-  if (['GK'].includes(pos)) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300';
-  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-300';
-  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-300';
-  return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-300';
-}
-
-function positionBgColor(pos: string): string {
-  if (['GK'].includes(pos)) return 'bg-yellow-500';
-  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'bg-blue-500';
-  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'bg-green-500';
-  return 'bg-red-500';
-}
-
-function positionBorderColor(pos: string): string {
-  if (['GK'].includes(pos)) return 'border-yellow-400';
-  if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'border-blue-400';
-  if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'border-green-400';
-  return 'border-red-400';
-}
-
-// Compatibility: which real positions can play in a formation slot
-const SLOT_COMPATIBILITY: Record<Position, Position[]> = {
-  'GK': ['GK'],
-  'CB': ['CB'],
-  'LB': ['LB', 'LWB'],
-  'RB': ['RB', 'RWB'],
-  'LWB': ['LWB', 'LB'],
-  'RWB': ['RWB', 'RB'],
-  'CDM': ['CDM', 'CM', 'CB'],
-  'CM': ['CM', 'CDM', 'CAM'],
-  'CAM': ['CAM', 'CM', 'CF'],
-  'LM': ['LM', 'LW', 'LB'],
-  'RM': ['RM', 'RW', 'RB'],
-  'LW': ['LW', 'LM', 'CF', 'ST'],
-  'RW': ['RW', 'RM', 'CF', 'ST'],
-  'CF': ['CF', 'ST', 'CAM'],
-  'ST': ['ST', 'CF', 'LW', 'RW'],
+const POSITION_NAMES: Record<Position, string> = {
+  GK: 'Goalkeeper',
+  CB: 'Center Back',
+  LB: 'Left Back',
+  RB: 'Right Back',
+  LWB: 'Left Wing Back',
+  RWB: 'Right Wing Back',
+  CDM: 'Def. Midfielder',
+  CM: 'Central Mid.',
+  CAM: 'Att. Midfielder',
+  LM: 'Left Mid.',
+  RM: 'Right Mid.',
+  LW: 'Left Wing',
+  RW: 'Right Wing',
+  CF: 'Center Forward',
+  ST: 'Striker',
 };
 
-function isCompatible(playerPos: Position, slotPos: Position): boolean {
-  return SLOT_COMPATIBILITY[slotPos]?.includes(playerPos) ?? false;
-}
+const SLOT_COMPATIBILITY: Record<Position, Position[]> = {
+  GK: ['GK'],
+  CB: ['CB'],
+  LB: ['LB', 'LWB'],
+  RB: ['RB', 'RWB'],
+  LWB: ['LWB', 'LB'],
+  RWB: ['RWB', 'RB'],
+  CDM: ['CDM', 'CM', 'CB'],
+  CM: ['CM', 'CDM', 'CAM'],
+  CAM: ['CAM', 'CM', 'CF'],
+  LM: ['LM', 'LW', 'LB'],
+  RM: ['RM', 'RW', 'RB'],
+  LW: ['LW', 'LM', 'CF', 'ST'],
+  RW: ['RW', 'RM', 'CF', 'ST'],
+  CF: ['CF', 'ST', 'CAM'],
+  ST: ['ST', 'CF', 'LW', 'RW'],
+};
 
-// Get position category for color coding
-function getPositionCategory(pos: Position): 'gk' | 'def' | 'mid' | 'fwd' {
+// ─── Helpers ────────────────────────────────────────────────────────
+
+type PositionCategory = 'gk' | 'def' | 'mid' | 'fwd';
+
+function getPositionCategory(pos: Position): PositionCategory {
   if (pos === 'GK') return 'gk';
   if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(pos)) return 'def';
   if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(pos)) return 'mid';
   return 'fwd';
 }
 
-// ─── Formation Validation Display ─────────────────────────────────
-function ValidationIndicator({ issues }: { issues: FormationIssue[] }) {
+function positionColor(pos: Position): string {
+  const cat = getPositionCategory(pos);
+  switch (cat) {
+    case 'gk': return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-300';
+    case 'def': return 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-300';
+    case 'mid': return 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-300';
+    case 'fwd': return 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-300';
+  }
+}
+
+function positionBgColor(pos: Position): string {
+  const cat = getPositionCategory(pos);
+  switch (cat) {
+    case 'gk': return 'bg-yellow-500';
+    case 'def': return 'bg-blue-500';
+    case 'mid': return 'bg-green-500';
+    case 'fwd': return 'bg-red-500';
+  }
+}
+
+function positionBorderColor(pos: Position): string {
+  const cat = getPositionCategory(pos);
+  switch (cat) {
+    case 'gk': return 'border-yellow-400';
+    case 'def': return 'border-blue-400';
+    case 'mid': return 'border-green-400';
+    case 'fwd': return 'border-red-400';
+  }
+}
+
+function positionGradient(pos: Position): string {
+  const cat = getPositionCategory(pos);
+  switch (cat) {
+    case 'gk': return 'linear-gradient(135deg, #eab308, #ca8a04)';
+    case 'def': return 'linear-gradient(135deg, #3b82f6, #2563eb)';
+    case 'mid': return 'linear-gradient(135deg, #22c55e, #16a34a)';
+    case 'fwd': return 'linear-gradient(135deg, #ef4444, #dc2626)';
+  }
+}
+
+function isCompatible(playerPos: Position, slotPos: Position): boolean {
+  return SLOT_COMPATIBILITY[slotPos]?.includes(playerPos) ?? false;
+}
+
+function getLastName(name: string): string {
+  const parts = name.trim().split(' ');
+  return parts[parts.length - 1] || name;
+}
+
+// ─── Drag Data Types ────────────────────────────────────────────────
+
+interface PitchDragData {
+  type: 'pitch';
+  teamKey: 'A' | 'B';
+  slotIndex: number;
+  playerId: string;
+}
+
+interface BenchDragData {
+  type: 'bench';
+  teamKey: 'A' | 'B';
+  playerId: string;
+}
+
+type DragData = PitchDragData | BenchDragData;
+
+interface SlotDropData {
+  type: 'pitch-slot';
+  teamKey: 'A' | 'B';
+  slotIndex: number;
+}
+
+interface BenchDropData {
+  type: 'bench-area';
+  teamKey: 'A' | 'B';
+}
+
+// ─── PitchSlot Component ────────────────────────────────────────────
+
+function PitchSlot({
+  slotIndex,
+  teamKey,
+  player,
+  slot,
+  isPickerOpen,
+  onPickerToggle,
+}: {
+  slotIndex: number;
+  teamKey: 'A' | 'B';
+  player: Player | null | undefined;
+  slot: FormationPosition;
+  isPickerOpen: boolean;
+  onPickerToggle: (index: number | null) => void;
+}) {
+  const store = useCoachStore();
+  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
+  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
+  const team = TEAMS.find(t => t.id === teamId);
+
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `pitch-${teamKey}-${slotIndex}`,
+    data: {
+      type: 'pitch',
+      teamKey,
+      slotIndex,
+      playerId: player?.id || '',
+    } as PitchDragData,
+    disabled: !player,
+  });
+
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `slot-${teamKey}-${slotIndex}`,
+    data: {
+      type: 'pitch-slot',
+      teamKey,
+      slotIndex,
+    } as SlotDropData,
+  });
+
+  const setRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      setDragRef(node);
+      setDropRef(node);
+    },
+    [setDragRef, setDropRef]
+  );
+
+  const benchPlayers = useMemo(() => {
+    if (!team) return [];
+    return lineup.subs
+      .map(id => team.players.find(p => p.id === id))
+      .filter((p): p is Player => !!p);
+  }, [team, lineup.subs]);
+
+  const compatibleBench = useMemo(() => {
+    const slotPos = slot.position;
+    const compatible = benchPlayers.filter(p => isCompatible(p.position, slotPos));
+    return compatible.length > 0 ? compatible : benchPlayers;
+  }, [benchPlayers, slot.position]);
+
+  const isOutOfPosition = player && !isCompatible(player.position, slot.position);
+  const isSeverelyOutOfPosition =
+    player &&
+    ((player.position === 'GK' && slot.position !== 'GK') ||
+      (['CB', 'LB', 'RB'].includes(player.position) &&
+        ['ST', 'LW', 'RW', 'CF'].includes(slot.position)) ||
+      (['ST', 'LW', 'RW', 'CF'].includes(player.position) &&
+        ['CB', 'LB', 'RB'].includes(slot.position)));
+
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: `${slot.x}%`,
+        top: `${slot.y}%`,
+        transform: 'translate(-50%, -50%)',
+        zIndex: isPickerOpen ? 25 : isOver ? 30 : 10,
+      }}
+    >
+      {/* Draggable + Droppable node */}
+      <div
+        ref={setRefs}
+        {...(player ? { ...attributes, ...listeners } : {})}
+        onClick={() => onPickerToggle(isPickerOpen ? null : slotIndex)}
+        className={`
+          relative cursor-pointer select-none transition-all duration-200
+          ${isDragging ? 'opacity-30 scale-90' : ''}
+          ${isOver ? 'scale-110' : ''}
+          ${!player ? 'opacity-70 hover:opacity-100' : 'hover:scale-105'}
+        `}
+      >
+        {/* Player circle */}
+        <div
+          className={`
+            w-11 h-11 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full
+            flex flex-col items-center justify-center
+            border-2 shadow-lg
+            ${player
+              ? isSeverelyOutOfPosition
+                ? 'border-red-400 ring-2 ring-red-400/50'
+                : isOutOfPosition
+                ? 'border-orange-400'
+                : positionBorderColor(player.position)
+              : 'border-white/40 border-dashed'
+            }
+            ${isOver ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-transparent' : ''}
+            ${isPickerOpen ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
+          `}
+          style={{
+            background: player ? positionGradient(player.position) : 'rgba(0,0,0,0.35)',
+          }}
+        >
+          {player ? (
+            <>
+              <span className="text-[7px] sm:text-[8px] md:text-[9px] font-bold leading-none text-white truncate max-w-[30px] sm:max-w-[36px] md:max-w-[46px]">
+                {getLastName(player.name)}
+              </span>
+              <span className="text-[7px] sm:text-[8px] md:text-[9px] leading-none text-white/80 font-semibold">
+                {player.rating}
+              </span>
+            </>
+          ) : (
+            <Plus className="w-4 h-4 text-white/60" />
+          )}
+        </div>
+
+        {/* Position label */}
+        <div className="mt-0.5 text-center">
+          <span
+            className={`text-[7px] sm:text-[8px] md:text-[9px] font-bold px-1 rounded ${positionColor(slot.position)}`}
+          >
+            {slot.position}
+          </span>
+          {player && player.position !== slot.position && (
+            <div className="text-[6px] sm:text-[7px] text-orange-400 mt-0.5 truncate max-w-[48px] mx-auto">
+              {player.position}
+            </div>
+          )}
+        </div>
+
+        {/* Warning badges */}
+        {player && isSeverelyOutOfPosition && (
+          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
+            <AlertTriangle className="w-2 h-2 text-white" />
+          </div>
+        )}
+        {player && isOutOfPosition && !isSeverelyOutOfPosition && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+            <span className="text-[6px] text-white font-bold">!</span>
+          </div>
+        )}
+      </div>
+
+      {/* Bench player picker popover */}
+      {isPickerOpen && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 max-h-52 overflow-y-auto bg-popover border rounded-lg shadow-xl z-50"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="sticky top-0 bg-popover p-2 border-b">
+            <div className="text-xs font-medium">Add to {slot.position}</div>
+            <div className="text-[10px] text-muted-foreground">
+              {compatibleBench.length} available
+            </div>
+          </div>
+          <div className="p-1">
+            {compatibleBench.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-2 text-center">
+                No players available
+              </div>
+            ) : (
+              compatibleBench.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (!lineup.starting11[slotIndex]) {
+                      store.addPlayerToStarting(teamKey, p.id, slotIndex);
+                    } else {
+                      store.swapPlayerIn(teamKey, slotIndex, p.id);
+                    }
+                    onPickerToggle(null);
+                  }}
+                  className={`w-full flex items-center gap-2 p-1.5 rounded text-left hover:bg-muted/50 transition-colors ${
+                    !isCompatible(p.position, slot.position) ? 'opacity-60' : ''
+                  }`}
+                >
+                  <Badge
+                    variant="outline"
+                    className={`text-[8px] px-1 py-0 ${positionColor(p.position)}`}
+                  >
+                    {p.position}
+                  </Badge>
+                  <span className="text-xs font-medium flex-1 truncate">
+                    {p.name}
+                  </span>
+                  <Badge variant="secondary" className="text-[8px] px-1 py-0">
+                    {p.rating}
+                  </Badge>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Squad Player Card Component ────────────────────────────────────
+
+function SquadPlayerCard({
+  player,
+  teamKey,
+  isStarting,
+  slotPosition,
+}: {
+  player: Player;
+  teamKey: 'A' | 'B';
+  isStarting: boolean;
+  slotPosition: Position | null;
+}) {
+  const store = useCoachStore();
+  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
+  const formationSlots = FORMATIONS[lineup.formation];
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `bench-${teamKey}-${player.id}`,
+    data: {
+      type: 'bench',
+      teamKey,
+      playerId: player.id,
+    } as BenchDragData,
+    disabled: isStarting,
+  });
+
+  const emptySlots = useMemo(() => {
+    return formationSlots
+      .map((s, i) => ({ ...s, index: i }))
+      .filter(s => !lineup.starting11[s.index]);
+  }, [formationSlots, lineup.starting11]);
+
+  const handleRemoveFromStarting = useCallback(() => {
+    const slotIdx = lineup.starting11.indexOf(player.id);
+    if (slotIdx >= 0) {
+      store.swapPlayerOut(teamKey, slotIdx);
+    }
+  }, [lineup.starting11, store, teamKey, player.id]);
+
+  return (
+    <div
+      ref={isStarting ? undefined : setNodeRef}
+      {...(isStarting ? {} : { ...attributes, ...listeners })}
+      className={`
+        flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all text-xs
+        ${isStarting
+          ? 'bg-primary/5 border-primary/20 shadow-sm'
+          : isDragging
+          ? 'opacity-40 bg-card border-border'
+          : 'bg-card border-border hover:shadow-md cursor-grab active:cursor-grabbing'
+        }
+      `}
+    >
+      {/* Position badge */}
+      <Badge
+        variant="outline"
+        className={`text-[8px] px-1.5 py-0 shrink-0 ${positionColor(player.position)}`}
+      >
+        {player.position}
+      </Badge>
+
+      {/* Name */}
+      <span className="font-medium flex-1 truncate">{player.name}</span>
+
+      {/* Rating */}
+      <Badge variant="secondary" className="text-[8px] px-1.5 py-0 shrink-0">
+        {player.rating}
+      </Badge>
+
+      {/* Slot position badge if starting */}
+      {isStarting && slotPosition && (
+        <Badge className="text-[7px] px-1 py-0 shrink-0 bg-primary/10 text-primary border border-primary/20">
+          {slotPosition}
+        </Badge>
+      )}
+
+      {/* Action button */}
+      {isStarting ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-5 w-5 p-0 shrink-0 hover:bg-red-500/10"
+          onClick={handleRemoveFromStarting}
+          title="Remove from starting XI"
+        >
+          <X className="w-3 h-3 text-red-500" />
+        </Button>
+      ) : (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0 shrink-0 hover:bg-green-500/10"
+              title="Add to starting XI"
+            >
+              <Plus className="w-3 h-3 text-green-600" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-52 p-1" align="end" side="left">
+            <div className="p-1.5 border-b mb-1">
+              <div className="text-xs font-medium">
+                Assign {getLastName(player.name)} to:
+              </div>
+            </div>
+            {emptySlots.length === 0 ? (
+              <div className="text-xs text-muted-foreground p-2 text-center">
+                No empty slots — remove a player first
+              </div>
+            ) : (
+              <div className="max-h-40 overflow-y-auto">
+                {emptySlots.map(s => (
+                  <button
+                    key={s.index}
+                    onClick={() => {
+                      store.addPlayerToStarting(teamKey, player.id, s.index);
+                    }}
+                    className={`w-full flex items-center gap-2 p-1.5 rounded text-left hover:bg-muted/50 transition-colors ${
+                      !isCompatible(player.position, s.position) ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold text-white shrink-0 ${positionBgColor(s.position)}`}
+                    >
+                      {s.position}
+                    </div>
+                    <span className="text-xs">{POSITION_NAMES[s.position]}</span>
+                    {!isCompatible(player.position, s.position) && (
+                      <span className="text-[9px] text-orange-500 ml-auto">⚠</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+// ─── Bench Drop Zone Component ──────────────────────────────────────
+
+function BenchDropZone({
+  teamKey,
+  children,
+}: {
+  teamKey: 'A' | 'B';
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `bench-area-${teamKey}`,
+    data: {
+      type: 'bench-area',
+      teamKey,
+    } as BenchDropData,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`transition-all rounded-lg ${
+        isOver ? 'ring-2 ring-yellow-400 bg-yellow-400/5' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Football Pitch SVG Markings ────────────────────────────────────
+
+function PitchMarkings() {
+  const lineColor = 'rgba(255,255,255,0.35)';
+  const lineW = 2;
+
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox="0 0 1050 680"
+      preserveAspectRatio="xMidYMid meet"
+      fill="none"
+    >
+      {/* Outer boundary */}
+      <rect x="0" y="0" width="1050" height="680" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Halfway line */}
+      <line x1="525" y1="0" x2="525" y2="680" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Center circle */}
+      <circle cx="525" cy="340" r="91.5" stroke={lineColor} strokeWidth={lineW} />
+      <circle cx="525" cy="340" r="4" fill={lineColor} />
+
+      {/* Left penalty area */}
+      <rect x="0" y="138.4" width="165" height="403.2" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Left goal area */}
+      <rect x="0" y="248.4" width="55" height="183.2" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Left penalty spot */}
+      <circle cx="110" cy="340" r="4" fill={lineColor} />
+
+      {/* Left penalty arc */}
+      <path
+        d="M 165 266.88 A 91.5 91.5 0 0 1 165 413.12"
+        stroke={lineColor}
+        strokeWidth={lineW}
+      />
+
+      {/* Left goal */}
+      <rect
+        x="-22"
+        y="303.4"
+        width="22"
+        height="73.2"
+        stroke="rgba(255,255,255,0.5)"
+        strokeWidth={2.5}
+        fill="rgba(255,255,255,0.05)"
+        rx="2"
+      />
+
+      {/* Right penalty area */}
+      <rect x="885" y="138.4" width="165" height="403.2" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Right goal area */}
+      <rect x="995" y="248.4" width="55" height="183.2" stroke={lineColor} strokeWidth={lineW} />
+
+      {/* Right penalty spot */}
+      <circle cx="940" cy="340" r="4" fill={lineColor} />
+
+      {/* Right penalty arc */}
+      <path
+        d="M 885 266.88 A 91.5 91.5 0 0 0 885 413.12"
+        stroke={lineColor}
+        strokeWidth={lineW}
+      />
+
+      {/* Right goal */}
+      <rect
+        x="1050"
+        y="303.4"
+        width="22"
+        height="73.2"
+        stroke="rgba(255,255,255,0.5)"
+        strokeWidth={2.5}
+        fill="rgba(255,255,255,0.05)"
+        rx="2"
+      />
+
+      {/* Corner arcs */}
+      <path d="M 10 0 A 10 10 0 0 0 0 10" stroke={lineColor} strokeWidth={lineW} />
+      <path d="M 1040 0 A 10 10 0 0 1 1050 10" stroke={lineColor} strokeWidth={lineW} />
+      <path d="M 0 670 A 10 10 0 0 0 10 680" stroke={lineColor} strokeWidth={lineW} />
+      <path d="M 1050 670 A 10 10 0 0 1 1040 680" stroke={lineColor} strokeWidth={lineW} />
+    </svg>
+  );
+}
+
+// ─── Validation Banner ──────────────────────────────────────────────
+
+function ValidationBanner({ issues }: { issues: FormationIssue[] }) {
   if (issues.length === 0) {
     return (
-      <div className="flex items-center gap-1 text-green-600 text-xs">
-        <CheckCircle2 className="w-3.5 h-3.5" />
-        <span>Valid lineup</span>
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20">
+        <CheckCircle2 className="w-4 h-4 text-green-600" />
+        <span className="text-sm font-medium text-green-700 dark:text-green-400">
+          Valid lineup
+        </span>
       </div>
     );
   }
@@ -92,442 +689,163 @@ function ValidationIndicator({ issues }: { issues: FormationIssue[] }) {
   const warnings = issues.filter(i => i.type === 'warning');
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {errors.map((issue, i) => (
-        <div key={i} className="flex items-center gap-1 text-red-600 text-xs">
-          <AlertTriangle className="w-3 h-3 shrink-0" />
-          <span>{issue.message}</span>
+        <div
+          key={`err-${i}`}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+          <span className="text-xs text-red-700 dark:text-red-400">{issue.message}</span>
         </div>
       ))}
       {warnings.map((issue, i) => (
-        <div key={i} className="flex items-center gap-1 text-amber-600 text-xs">
-          <AlertTriangle className="w-3 h-3 shrink-0" />
-          <span>{issue.message}</span>
+        <div
+          key={`warn-${i}`}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span className="text-xs text-amber-700 dark:text-amber-400">{issue.message}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ─── Pitch Component ────────────────────────────────────────────
-function FootballPitch({
-  teamKey,
-}: {
-  teamKey: 'A' | 'B';
-}) {
-  const store = useCoachStore();
-  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
-  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
-  const team = TEAMS.find(t => t.id === teamId);
+// ─── Main TacticsPage ───────────────────────────────────────────────
 
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+export default function TacticsPage() {
+  const store = useCoachStore();
+  const [activeTeam, setActiveTeam] = useState<'A' | 'B'>('A');
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
-  const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
-
-  if (!team) return null;
-
-  const formationSlots = FORMATIONS[lineup.formation];
-  const startingPlayers = lineup.starting11.map(id =>
-    id ? team.players.find(p => p.id === id) : null
-  );
-  const benchPlayers = lineup.subs.map(id => team.players.find(p => p.id === id)).filter(Boolean) as Player[];
-
-  // Calculate avg rating
-  const filledPlayers = startingPlayers.filter(Boolean) as Player[];
-  const avgRating = filledPlayers.length > 0
-    ? Math.round(filledPlayers.reduce((sum, p) => sum + p.rating, 0) / filledPlayers.length)
-    : 0;
-
-  // Formation validation
-  const issues = validateLineup(lineup, team);
-  const hasErrors = issues.some(i => i.type === 'error');
-
-  // Count position categories - LWB/RWB count as midfielders for formation display
-  // (in 3-5-2, the wingbacks are part of the midfield 5)
-  const defCount = filledPlayers.filter(p => ['CB', 'LB', 'RB'].includes(p.position)).length;
-  const midCount = filledPlayers.filter(p => ['CDM', 'CM', 'CAM', 'LM', 'RM', 'LWB', 'RWB'].includes(p.position)).length;
-  const fwdCount = filledPlayers.filter(p => ['ST', 'CF', 'LW', 'RW'].includes(p.position)).length;
-
-  // Drag handlers
-  const handleDragStart = useCallback((e: React.DragEvent, sourceType: 'pitch' | 'bench', sourceIndex: number) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({ sourceType, sourceIndex }));
-    e.dataTransfer.effectAllowed = 'move';
-    if (sourceType === 'pitch') {
-      setDraggingSlot(sourceIndex);
-    }
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggingSlot(null);
-    setDragOverSlot(null);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, slotIndex: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverSlot(slotIndex);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setDragOverSlot(null);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetSlotIndex: number) => {
-    e.preventDefault();
-    setDragOverSlot(null);
-    setDraggingSlot(null);
-
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
-
-      if (data.sourceType === 'bench') {
-        // Bench player dropped onto a pitch slot — swap in
-        const benchPlayerId = lineup.subs[data.sourceIndex];
-        if (benchPlayerId) {
-          store.swapPlayerIn(teamKey, targetSlotIndex, benchPlayerId);
-        }
-      } else if (data.sourceType === 'pitch') {
-        // Pitch player dragged to another pitch slot — move player to new position
-        if (data.sourceIndex !== targetSlotIndex) {
-          store.movePlayerToSlot(teamKey, data.sourceIndex, targetSlotIndex);
-        }
-      }
-    } catch {}
-  }, [lineup, store, teamKey]);
-
-  const handleBenchDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const handleBenchDrop = useCallback((e: React.DragEvent, benchIndex: number) => {
-    e.preventDefault();
-    setDraggingSlot(null);
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
-      if (data.sourceType === 'pitch') {
-        store.swapPlayerOut(teamKey, data.sourceIndex);
-      }
-    } catch {}
-  }, [store, teamKey]);
-
-  // Pick from bench for a specific slot
-  const handlePickForSlot = useCallback((slotIndex: number, playerId: string) => {
-    store.swapPlayerIn(teamKey, slotIndex, playerId);
-    setPickerSlot(null);
-  }, [store, teamKey]);
-
-  // Get compatible bench players for a slot
-  const getCompatibleBench = useCallback((slotIndex: number) => {
-    const slotPos = formationSlots[slotIndex]?.position;
-    if (!slotPos) return benchPlayers;
-    const compatible = benchPlayers.filter(p => isCompatible(p.position, slotPos));
-    return compatible.length > 0 ? compatible : benchPlayers;
-  }, [benchPlayers, formationSlots]);
-
-  return (
-    <div className="space-y-3">
-      {/* Team header */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">{team.flag}</span>
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
-          style={{ backgroundColor: team.color, color: team.textColor }}
-        >
-          {team.shortName.substring(0, 2)}
-        </div>
-        <span className="font-bold text-lg">{team.name}</span>
-        <Badge variant="outline" className="ml-1">OVR {team.overallRating}</Badge>
-        <Badge variant="secondary" className="ml-auto">Avg XI: {avgRating}</Badge>
-      </div>
-
-      {/* Formation selector */}
-      <div className="flex flex-wrap gap-1.5">
-        {FORMATION_LIST.map(f => (
-          <button
-            key={f}
-            onClick={() => store.setFormation(teamKey, f)}
-            className={`py-1 px-2.5 rounded-md text-sm font-mono border transition-all ${
-              lineup.formation === f
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-muted/50 border-border hover:bg-muted'
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-        <button
-          onClick={() => store.autoFillLineup(teamKey)}
-          className="py-1 px-2.5 rounded-md text-sm border border-dashed border-muted-foreground/50 hover:bg-muted/50 transition-all flex items-center gap-1"
-          title="Auto-fill best XI"
-        >
-          <RotateCcw className="w-3 h-3" /> Auto
-        </button>
-      </div>
-
-      {/* Position count indicators */}
-      <div className="flex items-center gap-2 text-xs">
-        <span className="flex items-center gap-1">
-          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CB')}`} />
-          Def: {defCount} {defCount < 3 && <span className="text-red-500 font-bold">(min 3)</span>}
-        </span>
-        <span className="flex items-center gap-1">
-          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CM')}`} />
-          Mid: {midCount}
-        </span>
-        <span className="flex items-center gap-1">
-          <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('ST')}`} />
-          Fwd: {fwdCount}
-        </span>
-        <span className="text-muted-foreground ml-auto">{filledPlayers.length}/11</span>
-      </div>
-
-      {/* Validation */}
-      {issues.length > 0 && <ValidationIndicator issues={issues} />}
-
-      {/* Football pitch */}
-      <div className="relative w-full aspect-[1.6/1] rounded-xl overflow-hidden border-2 border-green-700/40 shadow-lg"
-        style={{
-          background: 'linear-gradient(180deg, #1a6e2e 0%, #228b3a 15%, #1a6e2e 30%, #228b3a 45%, #1a6e2e 60%, #228b3a 75%, #1a6e2e 100%)',
-        }}
-      >
-        {/* Pitch markings */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 62.5" fill="none" preserveAspectRatio="none">
-          <rect x="2" y="2" width="96" height="58.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <line x1="50" y1="2" x2="50" y2="60.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <circle cx="50" cy="31.25" r="9" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <circle cx="50" cy="31.25" r="0.5" fill="rgba(255,255,255,0.3)" />
-          <rect x="2" y="13" width="14" height="36.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <rect x="2" y="21" width="6" height="20.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <circle cx="12" cy="31.25" r="0.4" fill="rgba(255,255,255,0.3)" />
-          <rect x="84" y="13" width="14" height="36.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-          <rect x="94" y="21" width="4" height="20.5" stroke="rgba(255,255,255,0.3)" strokeWidth="0.3" />
-        </svg>
-
-        {/* Players on pitch */}
-        {formationSlots.map((slot, index) => {
-          const player = startingPlayers[index];
-          const isDragOver = dragOverSlot === index;
-          const isPickerOpen = pickerSlot === index;
-          const isDragging = draggingSlot === index;
-
-          // Convert formation x,y (0-100) to pitch positions
-          const px = 4 + (slot.x / 100) * 92;
-          const py = 4 + (slot.y / 100) * 88;
-
-          // Check if player is playing out of position
-          const isOutOfPosition = player && !isCompatible(player.position, slot.position);
-          const isSeverelyOutOfPosition = player && (
-            (player.position === 'GK' && slot.position !== 'GK') ||
-            (['CB', 'LB', 'RB'].includes(player.position) && ['ST', 'LW', 'RW', 'CF'].includes(slot.position)) ||
-            (['ST', 'LW', 'RW', 'CF'].includes(player.position) && ['CB', 'LB', 'RB'].includes(slot.position))
-          );
-
-          return (
-            <div
-              key={index}
-              className="absolute"
-              style={{
-                left: `${px}%`,
-                top: `${py}%`,
-                transform: 'translate(-50%, -50%)',
-                zIndex: isPickerOpen ? 25 : isDragOver ? 30 : 10,
-              }}
-            >
-              {/* Player node */}
-              <div
-                draggable={!!player}
-                onDragStart={player ? (e) => handleDragStart(e, 'pitch', index) : undefined}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                onClick={() => setPickerSlot(isPickerOpen ? null : index)}
-                className={`
-                  relative cursor-pointer select-none transition-all duration-200
-                  ${isDragOver ? 'scale-125' : ''}
-                  ${isDragging ? 'opacity-40 scale-90' : ''}
-                  ${!player ? 'opacity-70 hover:opacity-100' : 'hover:scale-105'}
-                `}
-              >
-                {/* Player circle */}
-                <div className={`
-                  w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center
-                  border-2 shadow-lg backdrop-blur-sm
-                  ${player
-                    ? isSeverelyOutOfPosition
-                      ? 'border-red-400 border-2 ring-2 ring-red-400/50'
-                      : isOutOfPosition
-                      ? 'border-orange-400 border-2'
-                      : `${positionBorderColor(player.position)} border-2`
-                    : 'border-white/40 border-dashed'
-                  }
-                  ${isDragOver ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-transparent' : ''}
-                  ${isPickerOpen ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
-                `}
-                style={{
-                  backgroundColor: player
-                    ? team.color + 'dd'
-                    : 'rgba(0,0,0,0.4)',
-                }}
-                >
-                  {player ? (
-                    <>
-                      <span className="text-[7px] sm:text-[8px] font-bold leading-none text-white truncate max-w-[40px] sm:max-w-[48px]">
-                        {player.name.length > 10 ? player.name.split(' ').slice(-1)[0]?.substring(0, 8) : player.name}
-                      </span>
-                      <span className="text-[7px] sm:text-[8px] leading-none text-white/80">{player.rating}</span>
-                    </>
-                  ) : (
-                    <Plus className="w-4 h-4 text-white/60" />
-                  )}
-                </div>
-
-                {/* Position label below */}
-                <div className="mt-0.5 text-center">
-                  <span className={`
-                    text-[8px] sm:text-[9px] font-bold px-1 py-0 rounded
-                    ${positionColor(slot.position)} bg-opacity-80 backdrop-blur-sm
-                  `}>
-                    {slot.position}
-                  </span>
-                  {player && player.position !== slot.position && (
-                    <div className="text-[7px] text-muted-foreground/80 mt-0.5 truncate max-w-[48px]">
-                      {player.position}
-                    </div>
-                  )}
-                </div>
-
-                {/* Out of position warning */}
-                {player && isSeverelyOutOfPosition && (
-                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center">
-                    <AlertTriangle className="w-2 h-2 text-white" />
-                  </div>
-                )}
-                {player && isOutOfPosition && !isSeverelyOutOfPosition && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
-                    <span className="text-[6px] text-white font-bold">!</span>
-                  </div>
-                )}
-
-                {/* Drag grip indicator */}
-                {player && (
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-60 transition-opacity">
-                    <GripVertical className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </div>
-
-              {/* Bench player picker for this slot */}
-              {isPickerOpen && (
-                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-60 max-h-52 overflow-y-auto bg-popover border rounded-lg shadow-xl"
-                  style={{ zIndex: 20 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="sticky top-0 bg-popover p-2 border-b">
-                    <div className="text-xs font-medium">Add to {slot.position}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {getCompatibleBench(index).length} available
-                    </div>
-                  </div>
-                  <div className="p-1">
-                    {getCompatibleBench(index).length === 0 && (
-                      <div className="text-xs text-muted-foreground p-2 text-center">No players available</div>
-                    )}
-                    {getCompatibleBench(index).map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => handlePickForSlot(index, p.id)}
-                        className={`w-full flex items-center gap-2 p-1.5 rounded text-left hover:bg-muted/50 transition-colors ${
-                          !isCompatible(p.position, slot.position) ? 'opacity-60' : ''
-                        }`}
-                      >
-                        <Badge variant="outline" className={`text-[9px] px-1 py-0 ${positionColor(p.position)}`}>
-                          {p.position}
-                        </Badge>
-                        <span className="text-xs font-medium flex-1 truncate">{p.name}</span>
-                        <Badge variant="secondary" className="text-[9px] px-1 py-0">{p.rating}</Badge>
-                        <Plus className="w-3 h-3 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Click-away overlay for picker */}
-        {pickerSlot !== null && (
-          <div
-            className="absolute inset-0"
-            onClick={() => setPickerSlot(null)}
-            style={{ zIndex: 9 }}
-          />
-        )}
-      </div>
-
-      {/* Bench */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-medium flex items-center gap-1">
-            🪑 Bench ({benchPlayers.length})
-          </span>
-          <span className="text-[10px] text-muted-foreground">Drag to pitch or click + on pitch to add</span>
-        </div>
-        <div
-          className="flex flex-wrap gap-1.5 p-2 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-muted/10 min-h-[40px]"
-          onDragOver={handleBenchDragOver}
-          onDrop={(e) => handleBenchDrop(e, 0)}
-        >
-          {benchPlayers.length === 0 && (
-            <span className="text-xs text-muted-foreground py-2">No players on bench</span>
-          )}
-          {benchPlayers.map((player, benchIdx) => (
-            <div
-              key={player.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, 'bench', benchIdx)}
-              onDragEnd={handleDragEnd}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-md border bg-card cursor-grab active:cursor-grabbing hover:shadow-md transition-all text-xs"
-            >
-              <GripVertical className="w-3 h-3 text-muted-foreground/50" />
-              <Badge variant="outline" className={`text-[8px] px-1 py-0 ${positionColor(player.position)}`}>
-                {player.position}
-              </Badge>
-              <span className="font-medium max-w-[80px] truncate">{player.name.split(' ').pop()}</span>
-              <Badge variant="secondary" className="text-[8px] px-1 py-0">{player.rating}</Badge>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Tactics Page ──────────────────────────────────────────
-function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
-  const store = useCoachStore();
-  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
-  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
-  const team = TEAMS.find(t => t.id === teamId);
-
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragData, setActiveDragData] = useState<DragData | null>(null);
+  const [showTactics, setShowTactics] = useState(false);
   const [showSubDialog, setShowSubDialog] = useState(false);
   const [subOut, setSubOut] = useState('');
   const [subIn, setSubIn] = useState('');
   const [subMinute, setSubMinute] = useState(60);
-  const [showTactics, setShowTactics] = useState(false);
 
-  if (!team) return null;
+  // Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
 
-  const startingPlayers = lineup.starting11
-    .map(id => id ? team.players.find(p => p.id === id) : null)
-    .filter(Boolean) as Player[];
-  const benchPlayers = lineup.subs
-    .map(id => team.players.find(p => p.id === id))
-    .filter(Boolean) as Player[];
+  // Current team data
+  const teamKey = activeTeam;
+  const teamId = teamKey === 'A' ? store.teamAId : store.teamBId;
+  const lineup = teamKey === 'A' ? store.lineupA : store.lineupB;
+  const team = TEAMS.find(t => t.id === teamId);
 
-  const handleAddSub = () => {
+  // Both teams for toggle
+  const teamA = TEAMS.find(t => t.id === store.teamAId);
+  const teamB = TEAMS.find(t => t.id === store.teamBId);
+
+  // Derived data
+  const formationSlots = team ? FORMATIONS[lineup.formation] : [];
+  const startingPlayers = useMemo(() => {
+    if (!team) return [];
+    return lineup.starting11.map(id =>
+      id ? team.players.find(p => p.id === id) : null
+    );
+  }, [team, lineup.starting11]);
+
+  const filledPlayers = useMemo(
+    () => startingPlayers.filter((p): p is Player => !!p),
+    [startingPlayers]
+  );
+
+  const avgRating =
+    filledPlayers.length > 0
+      ? Math.round(filledPlayers.reduce((sum, p) => sum + p.rating, 0) / filledPlayers.length)
+      : 0;
+
+  const issues = team ? validateLineup(lineup, team) : [];
+  const hasErrors = issues.some(i => i.type === 'error');
+
+  // Position counts
+  const defCount = filledPlayers.filter(p =>
+    ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(p.position)
+  ).length;
+  const midCount = filledPlayers.filter(p =>
+    ['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(p.position)
+  ).length;
+  const fwdCount = filledPlayers.filter(p =>
+    ['ST', 'CF', 'LW', 'RW'].includes(p.position)
+  ).length;
+
+  // All players grouped by position category
+  const groupedPlayers = useMemo(() => {
+    if (!team) return { gk: [], def: [], mid: [], fwd: [] };
+    const sorted = [...team.players].sort((a, b) => b.rating - a.rating);
+    const gk = sorted.filter(p => getPositionCategory(p.position) === 'gk');
+    const def = sorted.filter(p => getPositionCategory(p.position) === 'def');
+    const mid = sorted.filter(p => getPositionCategory(p.position) === 'mid');
+    const fwd = sorted.filter(p => getPositionCategory(p.position) === 'fwd');
+    return { gk, def, mid, fwd };
+  }, [team]);
+
+  // DnD handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(active.id as string);
+    setActiveDragData((active.data.current as DragData) ?? null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragId(null);
+      setActiveDragData(null);
+
+      const { active, over } = event;
+      if (!over) return;
+
+      const dragData = active.data.current as DragData | undefined;
+      const dropData = over.data.current as SlotDropData | BenchDropData | undefined;
+
+      if (!dragData || !dropData) return;
+      if (dragData.teamKey !== teamKey) return;
+
+      if (dragData.type === 'bench' && dropData.type === 'pitch-slot') {
+        // Bench → pitch slot
+        const currentLineup =
+          dragData.teamKey === 'A' ? useCoachStore.getState().lineupA : useCoachStore.getState().lineupB;
+        const slotPlayerId = currentLineup.starting11[dropData.slotIndex];
+        if (slotPlayerId) {
+          store.swapPlayerIn(dragData.teamKey, dropData.slotIndex, dragData.playerId);
+        } else {
+          store.addPlayerToStarting(dragData.teamKey, dragData.playerId, dropData.slotIndex);
+        }
+      } else if (dragData.type === 'pitch' && dropData.type === 'pitch-slot') {
+        // Pitch → pitch slot (swap players)
+        if (dragData.slotIndex !== dropData.slotIndex) {
+          store.movePlayerToSlot(dragData.teamKey, dragData.slotIndex, dropData.slotIndex);
+        }
+      } else if (dragData.type === 'pitch' && dropData.type === 'bench-area') {
+        // Pitch → bench area (remove from starting)
+        store.swapPlayerOut(dragData.teamKey, dragData.slotIndex);
+      }
+    },
+    [store, teamKey]
+  );
+
+  const handleDragCancel = useCallback(() => {
+    setActiveDragId(null);
+    setActiveDragData(null);
+  }, []);
+
+  // Drag overlay player data
+  const overlayPlayer = useMemo(() => {
+    if (!activeDragData || !team) return null;
+    const playerId =
+      activeDragData.type === 'pitch' ? activeDragData.playerId : activeDragData.playerId;
+    return team.players.find(p => p.id === playerId) ?? null;
+  }, [activeDragData, team]);
+
+  // Substitution handler
+  const handleAddSub = useCallback(() => {
     if (!subOut || !subIn) return;
     const sub: Substitution = {
       id: `sub_${Date.now()}`,
@@ -540,221 +858,624 @@ function TeamTacticsPanel({ teamKey }: { teamKey: 'A' | 'B' }) {
     setSubOut('');
     setSubIn('');
     setShowSubDialog(false);
-  };
+  }, [subOut, subIn, subMinute, store, teamKey]);
 
-  const avgRating = startingPlayers.length > 0
-    ? Math.round(startingPlayers.reduce((sum, p) => sum + p.rating, 0) / startingPlayers.length)
-    : 0;
-
-  return (
-    <Card className="border-2">
-      <CardContent className="pt-4 space-y-3">
-        {/* Pitch view */}
-        <FootballPitch teamKey={teamKey} />
-
-        <Separator />
-
-        {/* Collapsible tactics */}
-        <div>
-          <button
-            className="w-full flex items-center justify-between text-sm font-medium py-1"
-            onClick={() => setShowTactics(!showTactics)}
-          >
-            <span className="flex items-center gap-1">⚙️ Tactics & Mentality</span>
-            {showTactics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-          {showTactics && (
-            <div className="space-y-3 mt-2">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span>Mentality</span>
-                </div>
-                <div className="grid grid-cols-5 gap-1">
-                  {MENTALITIES.map(m => (
-                    <button
-                      key={m.value}
-                      onClick={() => store.setTactics(teamKey, { mentality: m.value })}
-                      className={`py-1 px-1 rounded text-[11px] border transition-all ${
-                        lineup.tactics.mentality === m.value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted/50 border-border hover:bg-muted'
-                      }`}
-                    >
-                      {m.icon} {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {[
-                { key: 'pressingIntensity', label: 'Pressing', low: 'Low', high: 'High', icon: <Zap className="w-3 h-3" /> },
-                { key: 'tempo', label: 'Tempo', low: 'Slow', high: 'Fast', icon: <Gauge className="w-3 h-3" /> },
-                { key: 'width', label: 'Width', low: 'Narrow', high: 'Wide', icon: <Swords className="w-3 h-3" /> },
-                { key: 'defensiveLine', label: 'Def. Line', low: 'Deep', high: 'High', icon: <Shield className="w-3 h-3" /> },
-              ].map(({ key, label, low, high, icon }) => (
-                <div key={key}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="flex items-center gap-1">{icon} {label}</span>
-                    <span className="text-muted-foreground">{low} → {high}</span>
-                  </div>
-                  <Slider
-                    value={[lineup.tactics[key as keyof TacticalSettings] as number]}
-                    onValueChange={([v]) => store.setTactics(teamKey, { [key]: v })}
-                    min={0}
-                    max={100}
-                    step={5}
-                    className="py-1"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Substitutions */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-medium flex items-center gap-1">
-              🔄 Substitutions
-            </label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSubDialog(true)}
-              className="h-7 text-xs"
-            >
-              <Plus className="w-3 h-3 mr-1" /> Add Sub
-            </Button>
-          </div>
-
-          {lineup.substitutions.length === 0 && (
-            <p className="text-xs text-muted-foreground">No substitutions planned.</p>
-          )}
-
-          <div className="space-y-1">
-            {lineup.substitutions.map(sub => {
-              const outPlayer = team.players.find(p => p.id === sub.playerOutId);
-              const inPlayer = team.players.find(p => p.id === sub.playerInId);
-              return (
-                <div key={sub.id} className="flex items-center justify-between p-1.5 rounded bg-muted/30 text-xs hover:bg-muted/50 transition-colors">
-                  <span className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-[9px] font-mono px-1 py-0 w-8 justify-center">
-                      {sub.minute}&apos;
-                    </Badge>
-                    <span className="text-red-500">{outPlayer?.name}</span>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="text-green-600">{inPlayer?.name}</span>
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => store.removeSubstitution(teamKey, sub.id)}>
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-
-          {showSubDialog && (
-            <div className="mt-2 p-3 rounded-lg border bg-card space-y-2">
-              <Select value={subOut} onValueChange={setSubOut}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Player OFF" />
-                </SelectTrigger>
-                <SelectContent>
-                  {startingPlayers.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.position}) - {p.rating}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={subIn} onValueChange={setSubIn}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Player ON" />
-                </SelectTrigger>
-                <SelectContent>
-                  {benchPlayers.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.position}) - {p.rating}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div>
-                <label className="text-xs text-muted-foreground">Minute: {subMinute}&apos;</label>
-                <Slider
-                  value={[subMinute]}
-                  onValueChange={([v]) => setSubMinute(v)}
-                  min={46}
-                  max={85}
-                  step={1}
-                  className="py-1"
-                />
-              </div>
-
-              {subOut && subIn && (() => {
-                const outP = team.players.find(p => p.id === subOut);
-                const inP = team.players.find(p => p.id === subIn);
-                if (!outP || !inP) return null;
-                const diff = inP.rating - outP.rating;
-                return (
-                  <div className="text-center text-xs">
-                    <span className="text-muted-foreground">Rating change: </span>
-                    <span className={diff > 0 ? 'text-green-600 font-bold' : diff < 0 ? 'text-red-600 font-bold' : 'font-bold'}>
-                      {diff > 0 ? '+' : ''}{diff}
-                    </span>
-                  </div>
-                );
-              })()}
-
-              <div className="flex gap-2">
-                <Button size="sm" className="h-7 text-xs flex-1" onClick={handleAddSub}>Add</Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowSubDialog(false)}>Cancel</Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function TacticsPage() {
-  const { setStep, startSimulation, isLineupValid } = useCoachStore();
-  const validA = isLineupValid('A');
-  const validB = isLineupValid('B');
+  // Validation for start button
+  const validA = store.isLineupValid('A');
+  const validB = store.isLineupValid('B');
   const canSimulate = validA && validB;
 
+  if (!team) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <p className="text-muted-foreground">Select teams on the Setup page first.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl md:text-3xl font-bold">Build Your Starting XI</h2>
-        <p className="text-muted-foreground">Drag players between positions on the pitch, or click + to pick from the bench</p>
-        <p className="text-xs text-muted-foreground">Dragging a player to a new position changes their role — enforce minimum 3 defenders</p>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="text-center space-y-1">
+          <h2 className="text-2xl md:text-3xl font-bold">Build Your Starting XI</h2>
+          <p className="text-sm text-muted-foreground">
+            Drag players between positions on the pitch, or click + to pick from the squad
+          </p>
+        </div>
+
+        {/* Team Toggle */}
+        <div className="flex justify-center gap-3">
+          {teamA && (
+            <button
+              onClick={() => {
+                setActiveTeam('A');
+                setPickerSlot(null);
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                activeTeam === 'A'
+                  ? 'border-primary bg-primary/10 shadow-md'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+            >
+              <span className="text-xl">{teamA.flag}</span>
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
+                style={{ backgroundColor: teamA.color, color: teamA.textColor }}
+              >
+                {teamA.shortName.substring(0, 2)}
+              </div>
+              <span className="font-semibold">{teamA.name}</span>
+              <Badge variant="outline" className="text-[9px]">
+                OVR {teamA.overallRating}
+              </Badge>
+              {!store.isLineupValid('A') && (
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              )}
+            </button>
+          )}
+          {teamB && (
+            <button
+              onClick={() => {
+                setActiveTeam('B');
+                setPickerSlot(null);
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                activeTeam === 'B'
+                  ? 'border-primary bg-primary/10 shadow-md'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+            >
+              <span className="text-xl">{teamB.flag}</span>
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
+                style={{ backgroundColor: teamB.color, color: teamB.textColor }}
+              >
+                {teamB.shortName.substring(0, 2)}
+              </div>
+              <span className="font-semibold">{teamB.name}</span>
+              <Badge variant="outline" className="text-[9px]">
+                OVR {teamB.overallRating}
+              </Badge>
+              {!store.isLineupValid('B') && (
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Formation Selector + Position Counts */}
+        <Card>
+          <CardContent className="pt-4 pb-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {FORMATION_LIST.map(f => (
+                <button
+                  key={f}
+                  onClick={() => store.setFormation(teamKey, f)}
+                  className={`py-1 px-2.5 rounded-md text-sm font-mono border transition-all ${
+                    lineup.formation === f
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted/50 border-border hover:bg-muted'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+              <button
+                onClick={() => store.autoFillLineup(teamKey)}
+                className="py-1 px-2.5 rounded-md text-sm border border-dashed border-muted-foreground/50 hover:bg-muted/50 transition-all flex items-center gap-1"
+                title="Auto-fill best XI"
+              >
+                <RotateCcw className="w-3 h-3" /> Auto
+              </button>
+            </div>
+
+            {/* Position counts */}
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CB')}`} />
+                Def: {defCount}{' '}
+                {defCount < 3 && <span className="text-red-500 font-bold">(min 3)</span>}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('CM')}`} />
+                Mid: {midCount}
+                {midCount < 2 && <span className="text-amber-500">(min 2)</span>}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${positionBgColor('ST')}`} />
+                Fwd: {fwdCount}
+                {fwdCount === 0 && <span className="text-amber-500">(min 1)</span>}
+              </span>
+              <span className="text-muted-foreground ml-auto font-medium">
+                {filledPlayers.length}/11
+              </span>
+              <Badge variant="secondary" className="text-[9px]">
+                Avg: {avgRating}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Content: Pitch + Squad Panel */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Football Pitch */}
+          <div className="lg:col-span-2">
+            {/* Click-away overlay for picker */}
+            {pickerSlot !== null && (
+              <div className="fixed inset-0 z-20" onClick={() => setPickerSlot(null)} />
+            )}
+            <div
+              className="relative w-full rounded-xl overflow-hidden border-2 border-green-800/50 shadow-xl"
+              style={{
+                aspectRatio: '1.54 / 1',
+                background: `repeating-linear-gradient(
+                  90deg,
+                  #2d8a4e 0%,
+                  #2d8a4e 8.33%,
+                  #329952 8.33%,
+                  #329952 16.67%
+                )`,
+              }}
+            >
+              {/* Pitch markings SVG */}
+              <PitchMarkings />
+
+              {/* Player slots */}
+              {formationSlots.map((slot, index) => (
+                <PitchSlot
+                  key={`${teamKey}-${lineup.formation}-${index}`}
+                  slotIndex={index}
+                  teamKey={teamKey}
+                  player={startingPlayers[index]}
+                  slot={slot}
+                  isPickerOpen={pickerSlot === index}
+                  onPickerToggle={setPickerSlot}
+                />
+              ))}
+            </div>
+
+            {/* Validation Banner below pitch */}
+            <div className="mt-3">
+              <ValidationBanner issues={issues} />
+            </div>
+          </div>
+
+          {/* Squad Panel */}
+          <div className="lg:col-span-1">
+            <Card className="h-full">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold flex items-center gap-1.5">
+                    <Users className="w-4 h-4" /> Squad
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground">
+                    Drag bench players to pitch
+                  </span>
+                </div>
+
+                <BenchDropZone teamKey={teamKey}>
+                  <ScrollArea className="max-h-[480px]">
+                    <div className="space-y-3 pr-2">
+                      {/* Goalkeepers */}
+                      {groupedPlayers.gk.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`w-2 h-2 rounded-full ${positionBgColor('GK')}`} />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Goalkeepers
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {groupedPlayers.gk.map(p => (
+                              <SquadPlayerCard
+                                key={p.id}
+                                player={p}
+                                teamKey={teamKey}
+                                isStarting={lineup.starting11.includes(p.id)}
+                                slotPosition={
+                                  lineup.starting11.includes(p.id)
+                                    ? FORMATIONS[lineup.formation][
+                                        lineup.starting11.indexOf(p.id)
+                                      ]?.position ?? null
+                                    : null
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Defenders */}
+                      {groupedPlayers.def.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`w-2 h-2 rounded-full ${positionBgColor('CB')}`} />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Defenders
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {groupedPlayers.def.map(p => (
+                              <SquadPlayerCard
+                                key={p.id}
+                                player={p}
+                                teamKey={teamKey}
+                                isStarting={lineup.starting11.includes(p.id)}
+                                slotPosition={
+                                  lineup.starting11.includes(p.id)
+                                    ? FORMATIONS[lineup.formation][
+                                        lineup.starting11.indexOf(p.id)
+                                      ]?.position ?? null
+                                    : null
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Midfielders */}
+                      {groupedPlayers.mid.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`w-2 h-2 rounded-full ${positionBgColor('CM')}`} />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Midfielders
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {groupedPlayers.mid.map(p => (
+                              <SquadPlayerCard
+                                key={p.id}
+                                player={p}
+                                teamKey={teamKey}
+                                isStarting={lineup.starting11.includes(p.id)}
+                                slotPosition={
+                                  lineup.starting11.includes(p.id)
+                                    ? FORMATIONS[lineup.formation][
+                                        lineup.starting11.indexOf(p.id)
+                                      ]?.position ?? null
+                                    : null
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Forwards */}
+                      {groupedPlayers.fwd.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className={`w-2 h-2 rounded-full ${positionBgColor('ST')}`} />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Forwards
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {groupedPlayers.fwd.map(p => (
+                              <SquadPlayerCard
+                                key={p.id}
+                                player={p}
+                                teamKey={teamKey}
+                                isStarting={lineup.starting11.includes(p.id)}
+                                slotPosition={
+                                  lineup.starting11.includes(p.id)
+                                    ? FORMATIONS[lineup.formation][
+                                        lineup.starting11.indexOf(p.id)
+                                      ]?.position ?? null
+                                    : null
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </BenchDropZone>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Tactics Panel (Collapsible) */}
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <button
+              className="w-full flex items-center justify-between text-sm font-medium py-1"
+              onClick={() => setShowTactics(!showTactics)}
+            >
+              <span className="flex items-center gap-1.5">
+                ⚙️ Tactics &amp; Mentality
+              </span>
+              {showTactics ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+
+            {showTactics && (
+              <div className="space-y-4 mt-3">
+                {/* Mentality */}
+                <div>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="font-medium">Mentality</span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {MENTALITIES.map(m => (
+                      <button
+                        key={m.value}
+                        onClick={() => store.setTactics(teamKey, { mentality: m.value })}
+                        className={`py-1.5 px-1 rounded-md text-[11px] border transition-all ${
+                          lineup.tactics.mentality === m.value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/50 border-border hover:bg-muted'
+                        }`}
+                      >
+                        {m.icon} {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sliders */}
+                {[
+                  {
+                    key: 'pressingIntensity' as const,
+                    label: 'Pressing',
+                    low: 'Low',
+                    high: 'High',
+                    icon: <Zap className="w-3 h-3" />,
+                  },
+                  {
+                    key: 'tempo' as const,
+                    label: 'Tempo',
+                    low: 'Slow',
+                    high: 'Fast',
+                    icon: <Gauge className="w-3 h-3" />,
+                  },
+                  {
+                    key: 'width' as const,
+                    label: 'Width',
+                    low: 'Narrow',
+                    high: 'Wide',
+                    icon: <Swords className="w-3 h-3" />,
+                  },
+                  {
+                    key: 'defensiveLine' as const,
+                    label: 'Def. Line',
+                    low: 'Deep',
+                    high: 'High',
+                    icon: <Shield className="w-3 h-3" />,
+                  },
+                ].map(({ key, label, low, high, icon }) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1 font-medium">
+                        {icon} {label}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {low} → {high}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[lineup.tactics[key] as number]}
+                      onValueChange={([v]) => store.setTactics(teamKey, { [key]: v })}
+                      min={0}
+                      max={100}
+                      step={5}
+                      className="py-1"
+                    />
+                  </div>
+                ))}
+
+                <Separator />
+
+                {/* Substitutions */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3.5 h-3.5" /> Substitutions
+                    </label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSubDialog(true)}
+                      className="h-7 text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Add Sub
+                    </Button>
+                  </div>
+
+                  {lineup.substitutions.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No substitutions planned.</p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    {lineup.substitutions.map(sub => {
+                      const outPlayer = team.players.find(p => p.id === sub.playerOutId);
+                      const inPlayer = team.players.find(p => p.id === sub.playerInId);
+                      return (
+                        <div
+                          key={sub.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-muted/30 text-xs hover:bg-muted/50 transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] font-mono px-1.5 py-0 w-8 justify-center"
+                            >
+                              {sub.minute}&apos;
+                            </Badge>
+                            <span className="text-red-600 dark:text-red-400 font-medium">
+                              {outPlayer?.name}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="text-green-600 dark:text-green-400 font-medium">
+                              {inPlayer?.name}
+                            </span>
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                            onClick={() => store.removeSubstitution(teamKey, sub.id)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add Sub Dialog */}
+                  {showSubDialog && (
+                    <div className="mt-3 p-3 rounded-lg border bg-card space-y-2.5">
+                      <Select value={subOut} onValueChange={setSubOut}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Player OFF" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filledPlayers.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} ({p.position}) - {p.rating}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select value={subIn} onValueChange={setSubIn}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Player ON" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {lineup.subs
+                            .map(id => team.players.find(p => p.id === id))
+                            .filter((p): p is Player => !!p)
+                            .map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name} ({p.position}) - {p.rating}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground">
+                          Minute: {subMinute}&apos;
+                        </label>
+                        <Slider
+                          value={[subMinute]}
+                          onValueChange={([v]) => setSubMinute(v)}
+                          min={46}
+                          max={85}
+                          step={1}
+                          className="py-1"
+                        />
+                      </div>
+
+                      {subOut &&
+                        subIn &&
+                        (() => {
+                          const outP = team.players.find(p => p.id === subOut);
+                          const inP = team.players.find(p => p.id === subIn);
+                          if (!outP || !inP) return null;
+                          const diff = inP.rating - outP.rating;
+                          return (
+                            <div className="text-center text-xs">
+                              <span className="text-muted-foreground">Rating change: </span>
+                              <span
+                                className={
+                                  diff > 0
+                                    ? 'text-green-600 font-bold'
+                                    : diff < 0
+                                    ? 'text-red-600 font-bold'
+                                    : 'font-bold'
+                                }
+                              >
+                                {diff > 0 ? '+' : ''}
+                                {diff}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs flex-1"
+                          onClick={handleAddSub}
+                        >
+                          Add
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => setShowSubDialog(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Navigation */}
+        <div className="flex justify-center gap-4 pt-2 pb-4">
+          <Button variant="outline" size="lg" onClick={() => store.setStep('setup')}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <Button
+            size="lg"
+            onClick={() => store.startSimulation()}
+            className="px-10"
+            disabled={!canSimulate}
+            title={
+              !canSimulate
+                ? 'Both teams need valid lineups (11 players, min 3 defenders, 1 GK)'
+                : 'Start match simulation'
+            }
+          >
+            <Play className="w-4 h-4 mr-2" /> Simulate Match
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <TeamTacticsPanel teamKey="A" />
-        <TeamTacticsPanel teamKey="B" />
-      </div>
-
-      <div className="flex justify-center gap-4">
-        <Button variant="outline" size="lg" onClick={() => setStep('setup')}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back
-        </Button>
-        <Button
-          size="lg"
-          onClick={startSimulation}
-          className="px-12"
-          disabled={!canSimulate}
-          title={!canSimulate ? 'Both teams need valid lineups (11 players, min 3 defenders, 1 GK)' : 'Start match simulation'}
-        >
-          <Play className="w-4 h-4 mr-2" /> Simulate Match
-        </Button>
-      </div>
-    </div>
+      {/* Drag Overlay */}
+      <DragOverlay dropAnimation={null}>
+        {activeDragId && overlayPlayer ? (
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-card border-2 shadow-2xl rotate-2">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 border-2 border-white/30"
+              style={{ background: positionGradient(overlayPlayer.position) }}
+            >
+              {overlayPlayer.position}
+            </div>
+            <div>
+              <div className="text-sm font-bold leading-tight">
+                {getLastName(overlayPlayer.name)}
+              </div>
+              <div className="text-[11px] text-muted-foreground font-medium">
+                {overlayPlayer.rating} OVR
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
