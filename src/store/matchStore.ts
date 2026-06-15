@@ -7,12 +7,84 @@ import {
   Substitution,
   MatchState,
   MatchEvent,
+  Position,
 } from '@/lib/simulation/types';
 import { TEAMS } from '@/lib/simulation/data';
-import { getAutoLineup } from '@/lib/simulation/formations';
+import { getAutoLineup, FORMATIONS } from '@/lib/simulation/formations';
 import { simulateMatch, predictMatch, generateAnimationFrames, applyLiveSubstitution } from '@/lib/simulation/engine';
 
 type AppStep = 'setup' | 'tactics' | 'simulation';
+
+// ─── Formation Validation ────────────────────────────────────────────
+export interface FormationIssue {
+  type: 'error' | 'warning';
+  message: string;
+}
+
+const DEFENDER_POSITIONS: Position[] = ['CB', 'LB', 'RB', 'LWB', 'RWB'];
+const MIDFIELD_POSITIONS: Position[] = ['CDM', 'CM', 'CAM', 'LM', 'RM'];
+const FORWARD_POSITIONS: Position[] = ['ST', 'CF', 'LW', 'RW'];
+
+export function validateLineup(lineup: Lineup, team: Team | undefined): FormationIssue[] {
+  const issues: FormationIssue[] = [];
+  const startingPlayers = lineup.starting11
+    .map(id => id ? team?.players.find(p => p.id === id) : null)
+    .filter(Boolean);
+
+  // Check total players
+  if (startingPlayers.length < 11) {
+    issues.push({ type: 'error', message: `Only ${startingPlayers.length}/11 players selected` });
+  }
+
+  // Check GK
+  const gkCount = startingPlayers.filter(p => p!.position === 'GK').length;
+  if (gkCount === 0) {
+    issues.push({ type: 'error', message: 'No goalkeeper selected' });
+  } else if (gkCount > 1) {
+    issues.push({ type: 'warning', message: 'Multiple goalkeepers in starting XI' });
+  }
+
+  // Check defenders (min 3)
+  const defCount = startingPlayers.filter(p => DEFENDER_POSITIONS.includes(p!.position)).length;
+  if (defCount < 3) {
+    issues.push({ type: 'error', message: `Only ${defCount} defenders — minimum 3 required` });
+  }
+
+  // Check midfielders (min 2)
+  const midCount = startingPlayers.filter(p => MIDFIELD_POSITIONS.includes(p!.position)).length;
+  if (midCount < 2) {
+    issues.push({ type: 'warning', message: `Only ${midCount} midfielders — may struggle in possession` });
+  }
+
+  // Check forwards (min 1)
+  const fwdCount = startingPlayers.filter(p => FORWARD_POSITIONS.includes(p!.position)).length;
+  if (fwdCount === 0) {
+    issues.push({ type: 'warning', message: 'No forwards selected — may struggle to score' });
+  }
+
+  // Check compatibility - players playing out of position
+  const formationSlots = FORMATIONS[lineup.formation];
+  let outOfPosition = 0;
+  for (let i = 0; i < lineup.starting11.length; i++) {
+    const player = team?.players.find(p => p.id === lineup.starting11[i]);
+    const slotPos = formationSlots[i]?.position;
+    if (player && slotPos) {
+      // Check if player is severely out of position (e.g., GK playing ST)
+      if (player.position === 'GK' && slotPos !== 'GK') {
+        issues.push({ type: 'error', message: `Goalkeeper ${player.name} playing as ${slotPos}` });
+      } else if (FORWARD_POSITIONS.includes(player.position) && DEFENDER_POSITIONS.includes(slotPos)) {
+        outOfPosition++;
+      } else if (DEFENDER_POSITIONS.includes(player.position) && FORWARD_POSITIONS.includes(slotPos)) {
+        outOfPosition++;
+      }
+    }
+  }
+  if (outOfPosition > 2) {
+    issues.push({ type: 'warning', message: `${outOfPosition} players severely out of position` });
+  }
+
+  return issues;
+}
 
 interface CoachStore {
   // App state
@@ -37,6 +109,12 @@ interface CoachStore {
   swapPlayerIn: (team: 'A' | 'B', slotIndex: number, playerId: string) => void;
   swapPlayerOut: (team: 'A' | 'B', slotIndex: number) => void;
   swapPlayers: (team: 'A' | 'B', slotIndex1: number, slotIndex2: number) => void;
+  movePlayerToSlot: (team: 'A' | 'B', fromSlotIndex: number, toSlotIndex: number) => void;
+  addPlayerToStarting: (team: 'A' | 'B', playerId: string, slotIndex: number) => void;
+
+  // Validation
+  getLineupIssues: (team: 'A' | 'B') => FormationIssue[];
+  isLineupValid: (team: 'A' | 'B') => boolean;
 
   // Simulation
   matchResult: MatchState | null;
@@ -241,6 +319,68 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
   },
 
+  // Move a player from one slot to another (the player takes the new position)
+  // The displaced player goes to the source slot
+  movePlayerToSlot: (team, fromSlotIndex, toSlotIndex) => {
+    const state = get();
+    const currentLineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const starting11 = [...currentLineup.starting11];
+
+    if (fromSlotIndex === toSlotIndex) return;
+    if (fromSlotIndex < 0 || fromSlotIndex >= starting11.length) return;
+    if (toSlotIndex < 0 || toSlotIndex >= starting11.length) return;
+
+    // Swap the two players - each takes on the position of their new slot
+    const temp = starting11[fromSlotIndex];
+    starting11[fromSlotIndex] = starting11[toSlotIndex];
+    starting11[toSlotIndex] = temp;
+
+    const newLineup = { ...currentLineup, starting11 };
+    set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
+  },
+
+  // Add a bench player directly to a specific starting slot
+  addPlayerToStarting: (team, playerId, slotIndex) => {
+    const state = get();
+    const currentLineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
+    const starting11 = [...currentLineup.starting11];
+    const subs = [...currentLineup.subs];
+
+    if (slotIndex < 0 || slotIndex >= 11) return;
+
+    // Remove player from subs
+    const subIdx = subs.indexOf(playerId);
+    if (subIdx !== -1) subs.splice(subIdx, 1);
+
+    // If there's already a player at the slot, move them to bench
+    if (starting11[slotIndex]) {
+      subs.push(starting11[slotIndex]);
+    }
+
+    starting11[slotIndex] = playerId;
+
+    const newLineup = { ...currentLineup, starting11, subs };
+    set(team === 'A' ? { lineupA: newLineup } : { lineupB: newLineup });
+  },
+
+  // Validation helpers
+  getLineupIssues: (team) => {
+    const state = get();
+    const teamId = team === 'A' ? state.teamAId : state.teamBId;
+    const lineup = team === 'A' ? state.lineupA : state.lineupB;
+    const teamData = TEAMS.find(t => t.id === teamId);
+    return validateLineup(lineup, teamData);
+  },
+
+  isLineupValid: (team) => {
+    const state = get();
+    const teamId = team === 'A' ? state.teamAId : state.teamBId;
+    const lineup = team === 'A' ? state.lineupA : state.lineupB;
+    const teamData = TEAMS.find(t => t.id === teamId);
+    const issues = validateLineup(lineup, teamData);
+    return !issues.some(i => i.type === 'error');
+  },
+
   matchResult: null,
   animationFrames: [],
   currentFrame: 0,
@@ -257,10 +397,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     const teamB = TEAMS.find(t => t.id === state.teamBId)!;
     const seed = Date.now();
 
-    // Set step first so user sees we're loading, then compute
     set({ step: 'simulation', matchResult: null, animationFrames: [], prediction: null, simulationSeed: seed });
 
-    // Use setTimeout to allow React to render the loading state before heavy computation
     setTimeout(() => {
       const result = simulateMatch(teamA, teamB, state.lineupA, state.lineupB, seed);
       const frames = generateAnimationFrames(teamA, teamB, state.lineupA, state.lineupB, seed);
@@ -285,7 +423,6 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   setFrame: (frame) => set({ currentFrame: Math.max(0, Math.min(90, frame)) }),
   setAnimationSpeed: (speed) => set({ animationSpeed: speed }),
 
-  // Live substitution during animation
   liveSub: (team, playerOutId, playerInId) => {
     const state = get();
     const teamA = TEAMS.find(t => t.id === state.teamAId)!;
@@ -300,7 +437,6 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       state.simulationSeed
     );
 
-    // Update the lineup in the store too
     const lineup = team === 'A' ? { ...state.lineupA } : { ...state.lineupB };
     const updatedStarting11 = [...lineup.starting11];
     const idx = updatedStarting11.indexOf(playerOutId);
@@ -322,7 +458,6 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       }];
     }
 
-    // Rebuild event log from new frames
     const allEvents: MatchEvent[] = [];
     for (const frame of newFrames) {
       allEvents.push(...frame.events);

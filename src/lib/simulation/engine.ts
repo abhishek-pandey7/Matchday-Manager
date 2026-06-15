@@ -6,10 +6,12 @@ import {
   MatchState,
   PlayerPosition,
   FormationType,
+  Player,
+  Position,
 } from './types';
 import { FORMATIONS, mirrorPosition } from './formations';
 
-// Seeded random for reproducibility
+// ─── Seeded Random ──────────────────────────────────────────────────
 class SeededRandom {
   private seed: number;
   constructor(seed: number) {
@@ -30,6 +32,243 @@ class SeededRandom {
   }
 }
 
+// ─── Matchup System ─────────────────────────────────────────────────
+interface PlayerMatchup {
+  attackerId: string;
+  defenderId: string;
+  attackerRating: number;
+  defenderRating: number;
+  advantage: number; // positive = attacker dominates
+  side: 'left' | 'right' | 'center'; // which side of pitch
+  attackerPosition: Position;
+  defenderPosition: Position;
+}
+
+interface TeamMatchupAnalysis {
+  leftAdvantage: number;   // Team A's left wing advantage
+  rightAdvantage: number;  // Team A's right wing advantage
+  centerAdvantage: number; // Team A's center advantage
+  matchups: PlayerMatchup[];
+  overallAdvantage: number; // -1 to 1, positive = team A stronger
+}
+
+// Position categories for matchup mapping
+const ATTACK_POSITIONS: Position[] = ['ST', 'CF', 'LW', 'RW'];
+const MID_POSITIONS: Position[] = ['CAM', 'CM', 'CDM', 'LM', 'RM'];
+const DEF_POSITIONS: Position[] = ['CB', 'LB', 'RB', 'LWB', 'RWB'];
+
+// Wing matchup mapping: which attacking position faces which defending position
+const WING_MATCHUPS: Record<string, Position[]> = {
+  'LW': ['RB', 'RWB'],   // Left winger attacks right back
+  'LM': ['RB', 'RWB'],
+  'RW': ['LB', 'LWB'],   // Right winger attacks left back
+  'RM': ['LB', 'LWB'],
+  'ST': ['CB'],           // Striker vs center back
+  'CF': ['CB'],
+  'CAM': ['CDM'],         // CAM vs CDM
+  'CM': ['CM', 'CDM'],    // CM vs CM/CDM
+  'CDM': ['CM', 'CAM'],   // CDM vs CM/CAM
+};
+
+function calculateMatchups(
+  teamA: Team,
+  teamB: Team,
+  lineupA: Lineup,
+  lineupB: Lineup,
+  fatigue: Map<string, number>
+): TeamMatchupAnalysis {
+  const matchups: PlayerMatchup[] = [];
+
+  // Get starting players with fatigue-adjusted ratings
+  const getPlayers = (team: Team, lineup: Lineup) => {
+    return lineup.starting11
+      .map(id => team.players.find(p => p.id === id))
+      .filter((p): p is Player => !!p);
+  };
+
+  const playersA = getPlayers(teamA, lineupA);
+  const playersB = getPlayers(teamB, lineupB);
+
+  const getEffectiveRating = (player: Player) => {
+    const fatigueFactor = 1 - (fatigue.get(player.id) || 0) * 0.003;
+    return player.rating * fatigueFactor;
+  };
+
+  // Helper to find best matching defender
+  const findDefender = (attackers: Player[], defenders: Player[], attackerPos: Position): Player | null => {
+    const targetPositions = WING_MATCHUPS[attackerPos];
+    if (!targetPositions) return defenders[0] || null;
+
+    // Find defender whose position matches the target
+    const matchingDefender = defenders.find(d => targetPositions.includes(d.position));
+    return matchingDefender || defenders[0] || null;
+  };
+
+  // Calculate wing matchups
+  // Left wing: Team A's LW/LM vs Team B's RB/RWB
+  const leftWingAttackersA = playersA.filter(p => ['LW', 'LM'].includes(p.position));
+  const rightWingDefendersB = playersB.filter(p => ['RB', 'RWB'].includes(p.position));
+
+  for (const attacker of leftWingAttackersA) {
+    const defender = findDefender([attacker], rightWingDefendersB, attacker.position);
+    if (defender) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(defender);
+      const advantage = (aRating - dRating) / 100; // Normalize to -1..1
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage,
+        side: 'left',
+        attackerPosition: attacker.position,
+        defenderPosition: defender.position,
+      });
+    }
+  }
+
+  // Right wing: Team A's RW/RM vs Team B's LB/LWB
+  const rightWingAttackersA = playersA.filter(p => ['RW', 'RM'].includes(p.position));
+  const leftWingDefendersB = playersB.filter(p => ['LB', 'LWB'].includes(p.position));
+
+  for (const attacker of rightWingAttackersA) {
+    const defender = findDefender([attacker], leftWingDefendersB, attacker.position);
+    if (defender) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(defender);
+      const advantage = (aRating - dRating) / 100;
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage,
+        side: 'right',
+        attackerPosition: attacker.position,
+        defenderPosition: defender.position,
+      });
+    }
+  }
+
+  // Center: Team A's ST/CF vs Team B's CBs
+  const centerAttackersA = playersA.filter(p => ['ST', 'CF'].includes(p.position));
+  const centerDefendersB = playersB.filter(p => p.position === 'CB');
+
+  for (const attacker of centerAttackersA) {
+    // Match against best CB
+    const bestCB = centerDefendersB.sort((a, b) => getEffectiveRating(b) - getEffectiveRating(a))[0];
+    if (bestCB) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(bestCB);
+      const advantage = (aRating - dRating) / 100;
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: bestCB.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage,
+        side: 'center',
+        attackerPosition: attacker.position,
+        defenderPosition: bestCB.position,
+      });
+    }
+  }
+
+  // Midfield battle: CAM vs CDM, CM vs CM
+  const midAttackersA = playersA.filter(p => ['CAM', 'CM'].includes(p.position));
+  const midDefendersB = playersB.filter(p => ['CDM', 'CM'].includes(p.position));
+
+  for (const attacker of midAttackersA) {
+    const targetPositions = WING_MATCHUPS[attacker.position] || ['CM', 'CDM'];
+    const defender = midDefendersB.find(d => targetPositions.includes(d.position)) || midDefendersB[0];
+    if (defender) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(defender);
+      const advantage = (aRating - dRating) / 100;
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage,
+        side: 'center',
+        attackerPosition: attacker.position,
+        defenderPosition: defender.position,
+      });
+    }
+  }
+
+  // Also do reverse matchups (Team B attacking vs Team A defending)
+  // Left wing: Team B's LW/LM vs Team A's RB/RWB
+  const leftWingAttackersB = playersB.filter(p => ['LW', 'LM'].includes(p.position));
+  const rightWingDefendersA = playersA.filter(p => ['RB', 'RWB'].includes(p.position));
+
+  for (const attacker of leftWingAttackersB) {
+    const defender = findDefender([attacker], rightWingDefendersA, attacker.position);
+    if (defender) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(defender);
+      const advantage = (dRating - aRating) / 100; // Negative because this is B attacking, we store from A's perspective
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage, // negative means B has the advantage here
+        side: 'right', // B's left wing = A's right side
+        attackerPosition: attacker.position,
+        defenderPosition: defender.position,
+      });
+    }
+  }
+
+  // Right wing: Team B's RW/RM vs Team A's LB/LWB
+  const rightWingAttackersB = playersB.filter(p => ['RW', 'RM'].includes(p.position));
+  const leftWingDefendersA = playersA.filter(p => ['LB', 'LWB'].includes(p.position));
+
+  for (const attacker of rightWingAttackersB) {
+    const defender = findDefender([attacker], leftWingDefendersA, attacker.position);
+    if (defender) {
+      const aRating = getEffectiveRating(attacker);
+      const dRating = getEffectiveRating(defender);
+      const advantage = (dRating - aRating) / 100;
+      matchups.push({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerRating: aRating,
+        defenderRating: dRating,
+        advantage,
+        side: 'left', // B's right wing = A's left side
+        attackerPosition: attacker.position,
+        defenderPosition: defender.position,
+      });
+    }
+  }
+
+  // Calculate aggregate advantages
+  const leftMatchups = matchups.filter(m => m.side === 'left');
+  const rightMatchups = matchups.filter(m => m.side === 'right');
+  const centerMatchups = matchups.filter(m => m.side === 'center');
+
+  const avgAdvantage = (ms: PlayerMatchup[]) =>
+    ms.length > 0 ? ms.reduce((s, m) => s + m.advantage, 0) / ms.length : 0;
+
+  const leftAdvantage = avgAdvantage(leftMatchups);
+  const rightAdvantage = avgAdvantage(rightMatchups);
+  const centerAdvantage = avgAdvantage(centerMatchups);
+  const overallAdvantage = (leftAdvantage + rightAdvantage + centerAdvantage) / 3;
+
+  return {
+    leftAdvantage,
+    rightAdvantage,
+    centerAdvantage,
+    matchups,
+    overallAdvantage,
+  };
+}
+
+// ─── Team Strength Calculation ──────────────────────────────────────
 function getMentalityModifier(mentality: TacticalSettings['mentality']): {
   attackMod: number;
   defenseMod: number;
@@ -57,10 +296,6 @@ function getFormationAttackBonus(formation: FormationType): number {
   return attackingFormations[formation];
 }
 
-function getFormationDefenseBonus(formation: FormationType): number {
-  return -getFormationAttackBonus(formation);
-}
-
 function calculateTeamStrength(
   team: Team,
   lineup: Lineup,
@@ -68,7 +303,7 @@ function calculateTeamStrength(
 ): { attack: number; midfield: number; defense: number; overall: number } {
   const startingPlayers = lineup.starting11
     .map(id => team.players.find(p => p.id === id))
-    .filter(Boolean);
+    .filter(Boolean) as Player[];
 
   if (startingPlayers.length === 0) {
     return { attack: 50, midfield: 50, defense: 50, overall: 50 };
@@ -78,14 +313,13 @@ function calculateTeamStrength(
   let attackCount = 0, midCount = 0, defCount = 0;
 
   for (const player of startingPlayers) {
-    if (!player) continue;
     const fatigueFactor = 1 - (fatigue.get(player.id) || 0) * 0.003;
     const effectiveRating = player.rating * fatigueFactor;
 
-    if (['ST', 'CF', 'LW', 'RW'].includes(player.position)) {
+    if (ATTACK_POSITIONS.includes(player.position)) {
       attackSum += effectiveRating;
       attackCount++;
-    } else if (['CM', 'CAM', 'CDM', 'LM', 'RM'].includes(player.position)) {
+    } else if (MID_POSITIONS.includes(player.position)) {
       midSum += effectiveRating;
       midCount++;
     } else {
@@ -102,18 +336,26 @@ function calculateTeamStrength(
   return { attack, midfield, defense, overall };
 }
 
+// ─── Goal Expectancy with Rating-Based Dominance ────────────────────
 function calculateGoalExpectancy(
   attackStrength: number,
   oppositionDefense: number,
   midfieldDiff: number,
   tactics: TacticalSettings,
   formation: FormationType,
-  isHome: boolean
+  isHome: boolean,
+  overallRatingDiff: number // New: overall team quality difference
 ): number {
   const baseRate = 1.35;
 
+  // Enhanced rating-based scaling: bigger gaps = more dominant
   const attackRatio = attackStrength / 80;
   const defenseRatio = oppositionDefense / 80;
+
+  // Rating dominance multiplier: if a team is significantly better, they score more
+  // Exponential effect makes gaps more decisive
+  const ratingDominance = Math.pow(1.02, overallRatingDiff);
+
   const formationMod = getFormationAttackBonus(formation);
   const mentalityMod = getMentalityModifier(tactics.mentality);
   const pressingMod = (tactics.pressingIntensity - 50) / 500;
@@ -125,9 +367,10 @@ function calculateGoalExpectancy(
     baseRate *
     attackRatio *
     (2 - defenseRatio) *
+    ratingDominance *
     (1 + formationMod + mentalityMod.attackMod + pressingMod + tempoMod + homeMod + midMod);
 
-  return Math.max(0.15, Math.min(3.5, expectancy));
+  return Math.max(0.15, Math.min(4.0, expectancy));
 }
 
 function poissonRandom(lambda: number, rng: SeededRandom): number {
@@ -141,6 +384,7 @@ function poissonRandom(lambda: number, rng: SeededRandom): number {
   return k - 1;
 }
 
+// ─── Substitution Execution ─────────────────────────────────────────
 function executeSubstitutions(
   lineup: Lineup,
   minute: number,
@@ -179,9 +423,113 @@ function executeSubstitutions(
   return { events, updatedLineup };
 }
 
-// ============================================================
-// SIMULATE MATCH - generates events with ball position per minute
-// ============================================================
+// ─── Side-Based Attack Weighting ────────────────────────────────────
+// Uses matchup data to weight which side attacks go through
+function chooseAttackSide(
+  isTeamA: boolean,
+  matchupAnalysis: TeamMatchupAnalysis,
+  rng: SeededRandom
+): 'left' | 'right' | 'center' {
+  // Base weights
+  let leftWeight = 30;
+  let rightWeight = 30;
+  let centerWeight = 40;
+
+  if (isTeamA) {
+    // Team A attacks: positive advantage = A's attackers beat B's defenders
+    leftWeight += matchupAnalysis.leftAdvantage * 150;
+    rightWeight += matchupAnalysis.rightAdvantage * 150;
+    centerWeight += matchupAnalysis.centerAdvantage * 150;
+  } else {
+    // Team B attacks: negative advantage (from A's perspective) means B has the edge
+    leftWeight -= matchupAnalysis.leftAdvantage * 150;
+    rightWeight -= matchupAnalysis.rightAdvantage * 150;
+    centerWeight -= matchupAnalysis.centerAdvantage * 150;
+  }
+
+  // Ensure minimum weights
+  leftWeight = Math.max(10, leftWeight);
+  rightWeight = Math.max(10, rightWeight);
+  centerWeight = Math.max(10, centerWeight);
+
+  const total = leftWeight + rightWeight + centerWeight;
+  const roll = rng.next() * total;
+
+  if (roll < leftWeight) return 'left';
+  if (roll < leftWeight + rightWeight) return 'right';
+  return 'center';
+}
+
+// Get matchup advantage for a specific side and team
+function getSideAdvantage(
+  isTeamA: boolean,
+  side: 'left' | 'right' | 'center',
+  matchupAnalysis: TeamMatchupAnalysis
+): number {
+  let adv: number;
+  switch (side) {
+    case 'left': adv = matchupAnalysis.leftAdvantage; break;
+    case 'right': adv = matchupAnalysis.rightAdvantage; break;
+    case 'center': adv = matchupAnalysis.centerAdvantage; break;
+  }
+  return isTeamA ? adv : -adv;
+}
+
+// ─── Player Selection Based on Position and Side ────────────────────
+function selectPlayerForAction(
+  lineup: Lineup,
+  team: Team,
+  side: 'left' | 'right' | 'center',
+  actionType: 'attack' | 'defend' | 'midfield',
+  rng: SeededRandom,
+  fatigue: Map<string, number>
+): Player | null {
+  const players = lineup.starting11
+    .map(id => team.players.find(p => p.id === id))
+    .filter((p): p is Player => !!p);
+
+  // Score each player based on relevance to the action
+  const scored = players.map(player => {
+    let score = 0;
+    const fatigueFactor = 1 - (fatigue.get(player.id) || 0) * 0.003;
+    const effectiveRating = player.rating * fatigueFactor;
+
+    // Position relevance
+    if (actionType === 'attack') {
+      if (side === 'left' && ['LW', 'LM', 'ST', 'CF'].includes(player.position)) score += 30;
+      if (side === 'right' && ['RW', 'RM', 'ST', 'CF'].includes(player.position)) score += 30;
+      if (side === 'center' && ['ST', 'CF', 'CAM'].includes(player.position)) score += 30;
+      if (ATTACK_POSITIONS.includes(player.position)) score += 20;
+      if (MID_POSITIONS.includes(player.position)) score += 10;
+    } else if (actionType === 'defend') {
+      if (DEF_POSITIONS.includes(player.position)) score += 20;
+      if (player.position === 'GK') score += 15;
+      if (['CDM'].includes(player.position)) score += 15;
+    } else {
+      if (MID_POSITIONS.includes(player.position)) score += 25;
+      if (['CDM'].includes(player.position)) score += 15;
+    }
+
+    // Rating bonus
+    score += (effectiveRating - 60) * 0.5;
+
+    return { player, score: Math.max(0, score) };
+  });
+
+  // Weighted random selection
+  const totalScore = scored.reduce((s, p) => s + p.score, 0);
+  if (totalScore === 0) return players[0] || null;
+
+  let roll = rng.next() * totalScore;
+  for (const { player, score } of scored) {
+    roll -= score;
+    if (roll <= 0) return player;
+  }
+
+  return players[0] || null;
+}
+
+// ─── Main Simulation ────────────────────────────────────────────────
 export function simulateMatch(
   teamA: Team,
   teamB: Team,
@@ -199,17 +547,24 @@ export function simulateMatch(
   // Initialize fatigue
   [...currentLineupA.starting11, ...currentLineupB.starting11].forEach(id => fatigue.set(id, 0));
 
-  // Calculate goal expectancies
-  const strengthA = calculateTeamStrength(teamA, lineupA, fatigue);
-  const strengthB = calculateTeamStrength(teamB, lineupB, fatigue);
+  // Calculate team strengths
+  const strengthA = calculateTeamStrength(teamA, currentLineupA, fatigue);
+  const strengthB = calculateTeamStrength(teamB, currentLineupB, fatigue);
 
+  // Overall rating difference for dominance calculations
+  const overallRatingDiff = strengthA.overall - strengthB.overall;
+
+  // Calculate matchups
+  const matchupAnalysis = calculateMatchups(teamA, teamB, currentLineupA, currentLineupB, fatigue);
+
+  // Goal expectancy with enhanced rating dominance
   const expA = calculateGoalExpectancy(
     strengthA.attack, strengthB.defense, strengthA.midfield - strengthB.midfield,
-    lineupA.tactics, lineupA.formation, true
+    lineupA.tactics, lineupA.formation, true, overallRatingDiff
   );
   const expB = calculateGoalExpectancy(
     strengthB.attack, strengthA.defense, strengthB.midfield - strengthA.midfield,
-    lineupB.tactics, lineupB.formation, false
+    lineupB.tactics, lineupB.formation, false, -overallRatingDiff
   );
 
   const goalsA = poissonRandom(expA, rng);
@@ -227,10 +582,10 @@ export function simulateMatch(
   goalMinutesA.sort((a, b) => a - b);
   goalMinutesB.sort((a, b) => a - b);
 
-  // Pre-calculate possession strength
-  const possessionStrength = strengthA.midfield / (strengthA.midfield + strengthB.midfield);
+  // Possession strength - stronger team dominates more
+  const possessionStrength = 0.5 + (strengthA.midfield - strengthB.midfield) / 200;
 
-  // Track match stats
+  // Track stats
   let score: [number, number] = [0, 0];
   let shots: [number, number] = [0, 0];
   let shotsOnTarget: [number, number] = [0, 0];
@@ -241,9 +596,7 @@ export function simulateMatch(
   let passes: [number, number] = [0, 0];
   let possessionCount: [number, number] = [0, 0];
 
-  // Minute-by-minute ball position tracking
-  const minuteBallPositions: { x: number; y: number; teamId: string }[] = [];
-
+  // Ball tracking
   let ballX = 50, ballY = 50;
   let ballHolderTeamId = rng.chance(possessionStrength) ? teamA.id : teamB.id;
 
@@ -256,15 +609,18 @@ export function simulateMatch(
     x: 50,
     y: 50,
   });
-  minuteBallPositions[0] = { x: 50, y: 50, teamId: teamA.id };
 
+  // ─── Minute-by-Minute Simulation ────────────────────────────────
   for (let minute = 1; minute <= 90; minute++) {
-    // Fatigue increases each minute
+    // Fatigue increases - more for high-tempo teams
+    const tempoFactorA = 1 + (lineupA.tactics.tempo - 50) / 500;
+    const tempoFactorB = 1 + (lineupB.tactics.tempo - 50) / 500;
+
     for (const pid of currentLineupA.starting11) {
-      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6));
+      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorA);
     }
     for (const pid of currentLineupB.starting11) {
-      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6));
+      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorB);
     }
 
     // Execute substitutions
@@ -274,16 +630,29 @@ export function simulateMatch(
     currentLineupA = subResultA.updatedLineup;
     currentLineupB = subResultB.updatedLineup;
 
-    // Determine possession
-    const isTeamA = rng.chance(possessionStrength + (lineupA.tactics.tempo - 50) / 400);
+    // Recalculate matchups periodically (every 15 min or after subs)
+    let currentMatchupAnalysis = matchupAnalysis;
+    if (minute % 15 === 0 || subResultA.events.length > 0 || subResultB.events.length > 0) {
+      currentMatchupAnalysis = calculateMatchups(teamA, teamB, currentLineupA, currentLineupB, fatigue);
+    }
+
+    // Determine possession - stronger team dominates more
+    const currentPossStrength = 0.5 + (calculateTeamStrength(teamA, currentLineupA, fatigue).midfield -
+      calculateTeamStrength(teamB, currentLineupB, fatigue).midfield) / 200;
+    const isTeamA = rng.chance(currentPossStrength + (lineupA.tactics.tempo - 50) / 400);
     const currentTeam = isTeamA ? teamA : teamB;
     const currentLineup = isTeamA ? currentLineupA : currentLineupB;
+    const opponentLineup = isTeamA ? currentLineupB : currentLineupA;
     const teamIdx = isTeamA ? 0 : 1;
 
     ballHolderTeamId = currentTeam.id;
     possessionCount[teamIdx]++;
 
-    // Generate events for this minute
+    // Choose attack side based on matchups
+    const attackSide = chooseAttackSide(isTeamA, currentMatchupAnalysis, rng);
+    const sideAdvantage = getSideAdvantage(isTeamA, attackSide, currentMatchupAnalysis);
+
+    // Check if this is a goal minute
     const isGoalMinute = isTeamA ? goalMinutesA.includes(minute) : goalMinutesB.includes(minute);
 
     if (isGoalMinute) {
@@ -291,92 +660,177 @@ export function simulateMatch(
       shots[teamIdx]++;
       shotsOnTarget[teamIdx]++;
 
-      const goalX = isTeamA ? rng.range(90, 98) : rng.range(2, 10);
-      const goalY = rng.range(38, 62);
+      // Goal location based on side
+      let goalX: number, goalY: number;
+      if (attackSide === 'left') {
+        goalX = isTeamA ? rng.range(90, 98) : rng.range(2, 10);
+        goalY = isTeamA ? rng.range(35, 55) : rng.range(45, 65);
+      } else if (attackSide === 'right') {
+        goalX = isTeamA ? rng.range(90, 98) : rng.range(2, 10);
+        goalY = isTeamA ? rng.range(45, 65) : rng.range(35, 55);
+      } else {
+        goalX = isTeamA ? rng.range(92, 98) : rng.range(2, 8);
+        goalY = rng.range(40, 60);
+      }
       ballX = goalX;
       ballY = goalY;
 
-      // Find a striker/attacker as scorer
-      const attackers = currentLineup.starting11
-        .map(id => teamA.players.find(p => p.id === id) || teamB.players.find(p => p.id === id))
-        .filter(p => p && ['ST', 'CF', 'LW', 'RW', 'CAM'].includes(p.position));
+      // Pick goal scorer based on side
+      const scorer = selectPlayerForAction(
+        currentLineup, currentTeam, attackSide, 'attack', rng, fatigue
+      );
 
-      const scorer = attackers.length > 0
-        ? attackers[rng.int(0, attackers.length - 1)]
-        : currentLineup.starting11.map(id => [...teamA.players, ...teamB.players].find(p => p.id === id)).filter(Boolean)[0];
+      // Pick assist provider
+      const assister = selectPlayerForAction(
+        currentLineup, currentTeam, attackSide, 'midfield', rng, fatigue
+      );
 
-      // Pass sequences leading to goal
-      const passCount = rng.int(2, 6);
+      // Build-up passes leading to goal
+      const passCount = rng.int(4, 10);
       for (let p = 0; p < passCount; p++) {
-        const passLoc = generatePassLocation(rng, currentTeam.id, isTeamA);
+        const passLoc = generatePassLocation(rng, isTeamA, attackSide);
         events.push({
           minute: minute - 0.01 * (passCount - p),
           type: 'pass_sequence',
           teamId: currentTeam.id,
-          description: `Passing move by ${currentTeam.name}`,
+          description: `Passing move by ${currentTeam.name} down the ${attackSide}`,
           x: passLoc.x,
           y: passLoc.y,
         });
         passes[teamIdx]++;
       }
 
+      // Goal event with matchup context
+      const matchupDesc = Math.abs(sideAdvantage) > 0.1
+        ? ` (${scorer?.name || 'Unknown'} exploited the ${attackSide} side advantage!)`
+        : '';
+
       events.push({
         minute,
         type: 'goal',
         teamId: currentTeam.id,
         playerId: scorer?.id,
-        description: `⚽ GOAL! ${scorer?.name || 'Unknown'} scores for ${currentTeam.name}! ${score[0]} - ${score[1]}`,
+        secondaryPlayerId: assister?.id !== scorer?.id ? assister?.id : undefined,
+        description: `GOAL! ${scorer?.name || 'Unknown'} scores for ${currentTeam.name}!${matchupDesc} ${score[0]} - ${score[1]}`,
         x: goalX,
         y: goalY,
       });
     } else {
-      // Regular play events
+      // Regular play events - influenced by matchups
+      // Generate multiple passes per minute for realistic stats (3-7 passes/min)
+      const basePassesThisMinute = rng.int(3, 7);
+      const possessionBonus = isTeamA
+        ? (strengthA.midfield - strengthB.midfield) / 100
+        : (strengthB.midfield - strengthA.midfield) / 100;
+      const passesThisMinute = Math.max(2, Math.round(basePassesThisMinute + possessionBonus * 2));
+
+      for (let pIdx = 0; pIdx < passesThisMinute; pIdx++) {
+        passes[teamIdx]++;
+        // Move ball slightly with each pass
+        const passLoc = generatePassLocation(rng, isTeamA, attackSide);
+        ballX = ballX * 0.7 + passLoc.x * 0.3; // Blend for smoother ball movement
+        ballY = ballY * 0.7 + passLoc.y * 0.3;
+      }
+
+      // Show a pass event in timeline occasionally
+      if (rng.chance(0.25)) {
+        const passer = selectPlayerForAction(
+          currentLineup, currentTeam, attackSide, 'midfield', rng, fatigue
+        );
+        events.push({
+          minute,
+          type: 'pass_sequence',
+          teamId: currentTeam.id,
+          playerId: passer?.id,
+          description: `${passer?.name || currentTeam.name} controls midfield on the ${attackSide} side`,
+          x: ballX,
+          y: ballY,
+        });
+      }
+
+      // Side advantage affects event probabilities
+      const advantageBoost = sideAdvantage * 0.12;
       const eventRoll = rng.next();
 
-      if (eventRoll < 0.08) {
-        // Shot on target
+      if (eventRoll < 0.10 + advantageBoost) {
+        // Shot on target - higher rated attackers more likely to get shots on target
         shots[teamIdx]++;
         shotsOnTarget[teamIdx]++;
-        const shotX = isTeamA ? rng.range(88, 96) : rng.range(4, 12);
-        const shotY = rng.range(35, 65);
+
+        let shotX: number, shotY: number;
+        if (attackSide === 'left') {
+          shotX = isTeamA ? rng.range(88, 96) : rng.range(4, 12);
+          shotY = isTeamA ? rng.range(30, 55) : rng.range(45, 70);
+        } else if (attackSide === 'right') {
+          shotX = isTeamA ? rng.range(88, 96) : rng.range(4, 12);
+          shotY = isTeamA ? rng.range(45, 70) : rng.range(30, 55);
+        } else {
+          shotX = isTeamA ? rng.range(88, 96) : rng.range(4, 12);
+          shotY = rng.range(35, 65);
+        }
         ballX = shotX;
         ballY = shotY;
 
-        const shooter = currentLineup.starting11
-          .map(id => [...teamA.players, ...teamB.players].find(p => p.id === id))
-          .filter(p => p && ['ST', 'CF', 'LW', 'RW', 'CAM', 'CM'].includes(p.position))
-          [rng.int(0, 2)];
+        const shooter = selectPlayerForAction(
+          currentLineup, currentTeam, attackSide, 'attack', rng, fatigue
+        );
+
+        // Defender who made the save
+        const saver = selectPlayerForAction(
+          opponentLineup, isTeamA ? teamB : teamA, attackSide, 'defend', rng, fatigue
+        );
+
+        const saveDesc = saver?.position === 'GK'
+          ? `Saved by ${saver.name}.`
+          : saver ? `Blocked by ${saver.name}.` : 'Saved.';
 
         events.push({
           minute,
           type: 'shot_on_target',
           teamId: currentTeam.id,
           playerId: shooter?.id,
-          description: `Shot on target by ${shooter?.name || 'Unknown'}! Saved.`,
+          description: `Shot on target by ${shooter?.name || 'Unknown'}! ${saveDesc}`,
           x: shotX,
           y: shotY,
         });
-      } else if (eventRoll < 0.14) {
+      } else if (eventRoll < 0.20 + advantageBoost * 0.5) {
         // Shot off target
         shots[teamIdx]++;
-        const shotX = isTeamA ? rng.range(88, 98) : rng.range(2, 12);
-        const shotY = rng.chance(0.5) ? rng.range(5, 30) : rng.range(70, 95);
+
+        let shotX: number, shotY: number;
+        if (attackSide === 'left') {
+          shotX = isTeamA ? rng.range(88, 98) : rng.range(2, 12);
+          shotY = rng.chance(0.5) ? rng.range(5, 30) : rng.range(70, 95);
+        } else if (attackSide === 'right') {
+          shotX = isTeamA ? rng.range(88, 98) : rng.range(2, 12);
+          shotY = rng.chance(0.5) ? rng.range(5, 30) : rng.range(70, 95);
+        } else {
+          shotX = isTeamA ? rng.range(88, 98) : rng.range(2, 12);
+          shotY = rng.chance(0.5) ? rng.range(5, 30) : rng.range(70, 95);
+        }
         ballX = shotX;
         ballY = shotY;
+
+        const shooter = selectPlayerForAction(
+          currentLineup, currentTeam, attackSide, 'attack', rng, fatigue
+        );
 
         events.push({
           minute,
           type: 'shot_off_target',
           teamId: currentTeam.id,
-          description: `Shot goes wide by ${currentTeam.name}`,
+          playerId: shooter?.id,
+          description: `Shot goes wide by ${shooter?.name || 'Unknown'}`,
           x: shotX,
           y: shotY,
         });
-      } else if (eventRoll < 0.18) {
+      } else if (eventRoll < 0.24) {
         // Corner
         corners[teamIdx]++;
         const cornerX = isTeamA ? 95 : 5;
-        const cornerY = rng.chance(0.5) ? 5 : 95;
+        const cornerY = attackSide === 'left'
+          ? (isTeamA ? 5 : 95)
+          : (isTeamA ? 95 : 5);
         ballX = cornerX;
         ballY = cornerY;
 
@@ -384,41 +838,55 @@ export function simulateMatch(
           minute,
           type: 'corner',
           teamId: currentTeam.id,
-          description: `Corner kick for ${currentTeam.name}`,
+          description: `Corner kick for ${currentTeam.name} from the ${attackSide}`,
           x: cornerX,
           y: cornerY,
         });
-      } else if (eventRoll < 0.26) {
-        // Foul
-        fouls[teamIdx]++;
+      } else if (eventRoll < 0.32) {
+        // Foul - more likely when defender is struggling against attacker
+        // Foul is committed by the opponent, not the team with possession
+        const opponentTeamIdx: 0 | 1 = isTeamA ? 1 : 0;
+        fouls[opponentTeamIdx]++;
         const foulX = rng.range(20, 80);
-        const foulY = rng.range(20, 80);
+        const foulY = attackSide === 'left' ? rng.range(15, 45)
+          : attackSide === 'right' ? rng.range(55, 85)
+          : rng.range(35, 65);
         ballX = foulX;
         ballY = foulY;
+
+        const fouler = selectPlayerForAction(
+          opponentLineup, isTeamA ? teamB : teamA, attackSide, 'defend', rng, fatigue
+        );
+
+        const fouled = selectPlayerForAction(
+          currentLineup, currentTeam, attackSide, 'attack', rng, fatigue
+        );
+
+        // Foul is committed by the opponent (fouler), not by the team with possession
+        const opponentTeamId = isTeamA ? teamB.id : teamA.id;
 
         events.push({
           minute,
           type: 'foul',
-          teamId: currentTeam.id,
-          description: `Foul by ${currentTeam.name}`,
+          teamId: opponentTeamId,
+          playerId: fouler?.id,
+          secondaryPlayerId: fouled?.id,
+          description: `Foul by ${fouler?.name || 'Unknown'} on ${fouled?.name || 'Unknown'}`,
           x: foulX,
           y: foulY,
         });
 
-        // Chance of yellow card
-        if (rng.chance(0.25)) {
-          yellowCards[teamIdx]++;
-          const fouler = currentLineup.starting11
-            .map(id => [...teamA.players, ...teamB.players].find(p => p.id === id))
-            .filter(p => p && ['CB', 'LB', 'RB', 'CDM', 'CM'].includes(p.position))
-            [rng.int(0, 2)];
+        // Yellow card - more likely if defender is outmatched (desperate fouls)
+        const yellowChance = 0.25 + Math.max(0, -sideAdvantage) * 0.2;
+        if (rng.chance(yellowChance)) {
+          yellowCards[opponentTeamIdx]++;
 
           events.push({
             minute: minute + 0.01,
             type: 'yellow_card',
-            teamId: currentTeam.id,
+            teamId: opponentTeamId,
             playerId: fouler?.id,
-            description: `🟨 Yellow card for ${fouler?.name || 'Unknown'}`,
+            description: `Yellow card for ${fouler?.name || 'Unknown'}`,
             x: foulX,
             y: foulY,
           });
@@ -426,53 +894,42 @@ export function simulateMatch(
 
         // Very rare red card
         if (rng.chance(0.008)) {
-          redCards[teamIdx]++;
+          redCards[opponentTeamIdx]++;
           events.push({
             minute: minute + 0.02,
             type: 'red_card',
-            teamId: currentTeam.id,
-            description: `🟥 Red card! ${currentTeam.name} down to 10 men!`,
+            teamId: opponentTeamId,
+            playerId: fouler?.id,
+            description: `Red card! ${fouler?.name || 'Unknown'} is sent off! ${opponentTeamId === teamA.id ? teamA.name : teamB.name} down to 10 men!`,
             x: foulX,
             y: foulY,
           });
         }
-      } else if (eventRoll < 0.3) {
+      } else if (eventRoll < 0.36) {
         // Offside
         const offX = isTeamA ? rng.range(80, 92) : rng.range(8, 20);
-        const offY = rng.range(25, 75);
+        const offY = attackSide === 'left' ? rng.range(20, 45)
+          : attackSide === 'right' ? rng.range(55, 80)
+          : rng.range(35, 65);
         ballX = offX;
         ballY = offY;
+
+        const offsidePlayer = selectPlayerForAction(
+          currentLineup, currentTeam, attackSide, 'attack', rng, fatigue
+        );
 
         events.push({
           minute,
           type: 'offside',
           teamId: currentTeam.id,
-          description: `Offside against ${currentTeam.name}`,
+          playerId: offsidePlayer?.id,
+          description: `Offside against ${offsidePlayer?.name || currentTeam.name}`,
           x: offX,
           y: offY,
         });
-      } else {
-        // Pass sequence - ball moves to midfield area
-        const passLoc = generatePassLocation(rng, currentTeam.id, isTeamA);
-        ballX = passLoc.x;
-        ballY = passLoc.y;
-        passes[teamIdx]++;
-
-        if (rng.chance(0.3)) {
-          events.push({
-            minute,
-            type: 'pass_sequence',
-            teamId: currentTeam.id,
-            description: `${currentTeam.name} maintain possession with a passing move`,
-            x: ballX,
-            y: ballY,
-          });
-        }
       }
+      // Passes were already generated at the top of the else block
     }
-
-    // Store ball position for this minute (for animation)
-    minuteBallPositions[minute] = { x: ballX, y: ballY, teamId: ballHolderTeamId };
 
     // Half time
     if (minute === 45) {
@@ -497,14 +954,14 @@ export function simulateMatch(
     y: 50,
   });
 
-  // Calculate possession percentages
+  // Calculate possession
   const totalPoss = possessionCount[0] + possessionCount[1] || 1;
   const possession: [number, number] = [
     Math.round((possessionCount[0] / totalPoss) * 100),
     Math.round((possessionCount[1] / totalPoss) * 100),
   ];
 
-  // Generate player positions for animation
+  // Generate final player positions
   const teamAPositions = generatePlayerPositions(teamA, currentLineupA, ballX, ballY, true, lineupA.tactics);
   const teamBPositions = generatePlayerPositions(teamB, currentLineupB, ballX, ballY, false, lineupB.tactics);
 
@@ -520,8 +977,8 @@ export function simulateMatch(
     redCards,
     passes,
     passAccuracy: [
-      Math.round(70 + strengthA.overall / 10),
-      Math.round(70 + strengthB.overall / 10),
+      Math.round(75 + strengthA.midfield / 15),
+      Math.round(75 + strengthB.midfield / 15),
     ],
     ballX,
     ballY,
@@ -535,12 +992,27 @@ export function simulateMatch(
   };
 }
 
-function generatePassLocation(rng: SeededRandom, teamId: string, isTeamA: boolean): { x: number; y: number } {
+// ─── Pass Location Generation (Side-Aware) ─────────────────────────
+function generatePassLocation(
+  rng: SeededRandom,
+  isTeamA: boolean,
+  side: 'left' | 'right' | 'center'
+): { x: number; y: number } {
   const baseX = isTeamA ? rng.range(30, 75) : rng.range(25, 70);
-  const baseY = rng.range(15, 85);
+
+  let baseY: number;
+  if (side === 'left') {
+    baseY = rng.range(10, 40);
+  } else if (side === 'right') {
+    baseY = rng.range(60, 90);
+  } else {
+    baseY = rng.range(35, 65);
+  }
+
   return { x: baseX, y: baseY };
 }
 
+// ─── Player Position Generation (Enhanced Movement) ─────────────────
 function generatePlayerPositions(
   team: Team,
   lineup: Lineup,
@@ -557,21 +1029,62 @@ function generatePlayerPositions(
   const widthShift = (tactics.width - 50) / 400;
   const pressShift = (tactics.pressingIntensity - 50) / 300;
 
+  // Team-wide shift based on ball position
+  // When ball is in attacking half, the whole team shifts up
+  const teamShiftX = isTeamA
+    ? (ballX > 50 ? (ballX - 50) * 0.08 : 0)
+    : (ballX < 50 ? (50 - ballX) * 0.08 : 0);
+
+  // Team-wide lateral shift when ball is on one side
+  const teamShiftY = (ballY - 50) * 0.05;
+
   for (let i = 0; i < Math.min(11, lineup.starting11.length); i++) {
     const slot = formation[i];
     const playerId = lineup.starting11[i];
     if (!slot || !playerId) continue;
 
+    const player = team.players.find(p => p.id === playerId);
+
     let baseX = slot.x + defLineShift * 15;
     let baseY = slot.y + widthShift * 10;
 
-    // Ball attraction: players shift toward ball
-    const ballAttrX = (ballX - baseX) * 0.12 + pressShift * 8;
-    const ballAttrY = (ballY - baseY) * 0.08;
-    baseX += ballAttrX;
-    baseY += ballAttrY;
+    // Position-specific ball attraction
+    let ballAttrX: number, ballAttrY: number;
 
-    // Clamp
+    if (player && ATTACK_POSITIONS.includes(player.position)) {
+      // Attackers: strongly attracted to ball, push forward
+      ballAttrX = (ballX - baseX) * 0.2 + pressShift * 10;
+      ballAttrY = (ballY - baseY) * 0.15;
+      // Extra forward push when team has possession on attack side
+      if (isTeamA && ballX > 50) {
+        ballAttrX += (ballX - 50) * 0.1;
+      } else if (!isTeamA && ballX < 50) {
+        ballAttrX += (50 - ballX) * 0.1;
+      }
+    } else if (player && MID_POSITIONS.includes(player.position)) {
+      // Midfielders: moderate attraction, balanced
+      ballAttrX = (ballX - baseX) * 0.15 + pressShift * 8;
+      ballAttrY = (ballY - baseY) * 0.12;
+    } else if (player && player.position === 'GK') {
+      // Goalkeeper: stays in goal area, slight lateral movement
+      ballAttrX = (ballX - baseX) * 0.02;
+      ballAttrY = (ballY - baseY) * 0.05;
+    } else {
+      // Defenders: moderate forward shift but stay behind ball
+      ballAttrX = (ballX - baseX) * 0.1 + pressShift * 6;
+      ballAttrY = (ballY - baseY) * 0.1;
+      // Defenders shouldn't push too far forward
+      if (isTeamA && baseX + ballAttrX > 60) {
+        ballAttrX = Math.min(ballAttrX, 60 - baseX);
+      } else if (!isTeamA && baseX + ballAttrX < 40) {
+        ballAttrX = Math.max(ballAttrX, 40 - baseX);
+      }
+    }
+
+    baseX += ballAttrX + teamShiftX;
+    baseY += ballAttrY + teamShiftY;
+
+    // Clamp positions
     baseX = Math.max(2, Math.min(98, baseX));
     baseY = Math.max(3, Math.min(97, baseY));
 
@@ -581,20 +1094,23 @@ function generatePlayerPositions(
       baseY = mirrored.y;
     }
 
+    // Check if this player has the ball
+    const hasBall = false; // Will be set during animation
+
     positions.push({
       playerId,
       baseX,
       baseY,
       currentX: baseX,
       currentY: baseY,
-      hasBall: false,
+      hasBall,
     });
   }
 
   return positions;
 }
 
-// Monte Carlo prediction
+// ─── Monte Carlo Prediction ─────────────────────────────────────────
 export function predictMatch(
   teamA: Team,
   teamB: Team,
@@ -631,9 +1147,7 @@ export function predictMatch(
   };
 }
 
-// ============================================================
-// ANIMATION FRAMES - accurate per-minute with cumulative stats
-// ============================================================
+// ─── Animation Frames ───────────────────────────────────────────────
 export function generateAnimationFrames(
   teamA: Team,
   teamB: Team,
@@ -645,7 +1159,7 @@ export function generateAnimationFrames(
   const frames: MatchState[] = [];
   const sortedEvents = [...fullMatch.events].sort((a, b) => a.minute - b.minute);
 
-  // Track cumulative stats per minute for accuracy
+  // Track cumulative stats per minute
   let cumScore: [number, number] = [0, 0];
   let cumShots: [number, number] = [0, 0];
   let cumShotsOnTarget: [number, number] = [0, 0];
@@ -656,7 +1170,6 @@ export function generateAnimationFrames(
   let cumPasses: [number, number] = [0, 0];
   let cumPossCount: [number, number] = [0, 0];
 
-  // Pre-compute per-minute stats from events
   const minuteStats: Map<number, {
     score: [number, number];
     shots: [number, number];
@@ -669,7 +1182,6 @@ export function generateAnimationFrames(
     possCount: [number, number];
   }> = new Map();
 
-  // Process events to build cumulative stats
   for (const evt of sortedEvents) {
     const m = Math.floor(evt.minute);
     const isTeamAEvent = evt.teamId === teamA.id;
@@ -708,7 +1220,6 @@ export function generateAnimationFrames(
       }
     }
 
-    // Store snapshot for this minute
     minuteStats.set(m, {
       score: [...cumScore] as [number, number],
       shots: [...cumShots] as [number, number],
@@ -722,7 +1233,7 @@ export function generateAnimationFrames(
     });
   }
 
-  // Also track possession per minute from event teamIds
+  // Track possession per minute
   for (let m = 1; m <= 90; m++) {
     const mEvents = sortedEvents.filter(e => Math.floor(e.minute) === m && e.teamId);
     if (mEvents.length > 0) {
@@ -732,7 +1243,53 @@ export function generateAnimationFrames(
     }
   }
 
-  // Build per-minute ball position from events
+  // Fix pass counts: distribute fullMatch.passes proportionally across minutes
+  // The event-based counting only captures ~25% of passes (only pass_sequence events).
+  // We use possession data to distribute the correct total pass count.
+  const totalPossCount = cumPossCount[0] + cumPossCount[1] || 1;
+  const totalEventPasses = cumPasses[0] + cumPasses[1] || 1;
+
+  // Recalculate passes per minute based on actual totals from fullMatch
+  const targetPassesA = fullMatch.passes[0];
+  const targetPassesB = fullMatch.passes[1];
+  const passRatioA = targetPassesA / (cumPasses[0] || 1);
+  const passRatioB = targetPassesB / (cumPasses[1] || 1);
+
+  // Redistribute passes across minuteStats
+  let redistributedPasses: [number, number] = [0, 0];
+  for (let m = 0; m <= 90; m++) {
+    const mStats = minuteStats.get(m);
+    if (mStats) {
+      // Calculate incremental passes for this minute
+      const prevM = m - 1;
+      const prevStats = minuteStats.get(prevM);
+      const eventPassesA = mStats.passes[0] - (prevStats?.passes[0] || 0);
+      const eventPassesB = mStats.passes[1] - (prevStats?.passes[1] || 0);
+
+      // Scale by ratio but also add proportional passes for minutes with possession
+      const possRatioA = cumPossCount[0] / totalPossCount;
+      const possRatioB = cumPossCount[1] / totalPossCount;
+      const minutesWithEvents = sortedEvents.filter(e => Math.floor(e.minute) === m).length > 0;
+      const basePassesPerMinute = Math.round((targetPassesA + targetPassesB) / 90);
+
+      const scaledPassesA = Math.round(eventPassesA * passRatioA) + (minutesWithEvents ? Math.round(basePassesPerMinute * possRatioA * 0.7) : 0);
+      const scaledPassesB = Math.round(eventPassesB * passRatioB) + (minutesWithEvents ? Math.round(basePassesPerMinute * possRatioB * 0.7) : 0);
+
+      redistributedPasses[0] += scaledPassesA;
+      redistributedPasses[1] += scaledPassesB;
+
+      mStats.passes = [...redistributedPasses] as [number, number];
+    }
+  }
+
+  // Ensure final pass count matches fullMatch exactly
+  const lastMinuteWithStats = Math.max(...Array.from(minuteStats.keys()));
+  const finalStats = minuteStats.get(lastMinuteWithStats);
+  if (finalStats) {
+    finalStats.passes = [targetPassesA, targetPassesB];
+  }
+
+  // Build ball position map
   let lastBallX = 50, lastBallY = 50;
   let lastBallTeam = teamA.id;
   const ballPositionMap: Map<number, { x: number; y: number; teamId: string }> = new Map();
@@ -748,12 +1305,14 @@ export function generateAnimationFrames(
     ballPositionMap.set(m, { x: lastBallX, y: lastBallY, teamId: lastBallTeam });
   }
 
-  // Generate frames
+  // Generate frames with enhanced player positions
+  const rng = new SeededRandom(seed);
+
   for (let minute = 0; minute <= 90; minute++) {
     const ballPos = ballPositionMap.get(minute) || ballPositionMap.get(minute - 1) || { x: 50, y: 50, teamId: teamA.id };
     const stats = minuteStats.get(minute);
 
-    // For minutes without events, use the last known stats
+    // Fill forward from last known stats
     let frameScore: [number, number] = stats?.score || [0, 0];
     let frameShots: [number, number] = stats?.shots || [0, 0];
     let frameShotsOnTarget: [number, number] = stats?.shotsOnTarget || [0, 0];
@@ -763,7 +1322,6 @@ export function generateAnimationFrames(
     let frameRedCards: [number, number] = stats?.redCards || [0, 0];
     let framePasses: [number, number] = stats?.passes || [0, 0];
 
-    // Fill forward from last known stats
     if (!stats && minute > 0) {
       for (let pm = minute - 1; pm >= 0; pm--) {
         const prevStats = minuteStats.get(pm);
@@ -781,17 +1339,21 @@ export function generateAnimationFrames(
       }
     }
 
-    // Possession calculation
     const totalPoss = cumPossCount[0] + cumPossCount[1] || 1;
     const possession: [number, number] = [
       Math.round((cumPossCount[0] / totalPoss) * 100),
       Math.round((cumPossCount[1] / totalPoss) * 100),
     ];
 
-    const teamAPositions = generatePlayerPositions(teamA, lineupA, ballPos.x, ballPos.y, true, lineupA.tactics);
-    const teamBPositions = generatePlayerPositions(teamB, lineupB, ballPos.x, ballPos.y, false, lineupB.tactics);
+    // Generate player positions with enhanced movement
+    // Add small random jitter to make movement more natural between frames
+    const teamAPositions = generatePlayerPositionsWithJitter(
+      teamA, lineupA, ballPos.x, ballPos.y, true, lineupA.tactics, rng
+    );
+    const teamBPositions = generatePlayerPositionsWithJitter(
+      teamB, lineupB, ballPos.x, ballPos.y, false, lineupB.tactics, rng
+    );
 
-    // Get events for this specific minute
     const minuteEvents = sortedEvents.filter(e => Math.floor(e.minute) === minute);
 
     frames.push({
@@ -821,9 +1383,107 @@ export function generateAnimationFrames(
   return frames;
 }
 
-// ============================================================
-// LIVE SUBSTITUTION - re-simulate from current minute
-// ============================================================
+// Generate player positions with per-frame jitter for more realistic movement
+function generatePlayerPositionsWithJitter(
+  team: Team,
+  lineup: Lineup,
+  ballX: number,
+  ballY: number,
+  isTeamA: boolean,
+  tactics: TacticalSettings,
+  rng: SeededRandom
+): PlayerPosition[] {
+  const formation = FORMATIONS[lineup.formation];
+  if (!formation) return [];
+
+  const positions: PlayerPosition[] = [];
+  const defLineShift = (tactics.defensiveLine - 50) / 200;
+  const widthShift = (tactics.width - 50) / 400;
+  const pressShift = (tactics.pressingIntensity - 50) / 300;
+
+  // Team-wide shift based on ball position
+  const teamShiftX = isTeamA
+    ? (ballX > 50 ? (ballX - 50) * 0.08 : 0)
+    : (ballX < 50 ? (50 - ballX) * 0.08 : 0);
+  const teamShiftY = (ballY - 50) * 0.05;
+
+  for (let i = 0; i < Math.min(11, lineup.starting11.length); i++) {
+    const slot = formation[i];
+    const playerId = lineup.starting11[i];
+    if (!slot || !playerId) continue;
+
+    const player = team.players.find(p => p.id === playerId);
+
+    let baseX = slot.x + defLineShift * 15;
+    let baseY = slot.y + widthShift * 10;
+
+    // Position-specific ball attraction
+    let ballAttrX: number, ballAttrY: number;
+
+    if (player && ATTACK_POSITIONS.includes(player.position)) {
+      // Attackers: strongly attracted to ball, push forward
+      ballAttrX = (ballX - baseX) * 0.22 + pressShift * 10;
+      ballAttrY = (ballY - baseY) * 0.15;
+      if (isTeamA && ballX > 50) {
+        ballAttrX += (ballX - 50) * 0.12;
+      } else if (!isTeamA && ballX < 50) {
+        ballAttrX += (50 - ballX) * 0.12;
+      }
+    } else if (player && MID_POSITIONS.includes(player.position)) {
+      // Midfielders: moderate attraction
+      ballAttrX = (ballX - baseX) * 0.16 + pressShift * 8;
+      ballAttrY = (ballY - baseY) * 0.12;
+    } else if (player && player.position === 'GK') {
+      // Goalkeeper: stays in goal area
+      ballAttrX = (ballX - baseX) * 0.02;
+      ballAttrY = (ballY - baseY) * 0.06;
+    } else {
+      // Defenders: moderate shift but stay behind ball
+      ballAttrX = (ballX - baseX) * 0.12 + pressShift * 6;
+      ballAttrY = (ballY - baseY) * 0.1;
+      if (isTeamA && baseX + ballAttrX > 60) {
+        ballAttrX = Math.min(ballAttrX, 60 - baseX);
+      } else if (!isTeamA && baseX + ballAttrX < 40) {
+        ballAttrX = Math.max(ballAttrX, 40 - baseX);
+      }
+    }
+
+    baseX += ballAttrX + teamShiftX;
+    baseY += ballAttrY + teamShiftY;
+
+    // Add per-frame jitter for natural movement
+    const jitterX = rng.range(-1.5, 1.5);
+    const jitterY = rng.range(-1.5, 1.5);
+    baseX += jitterX;
+    baseY += jitterY;
+
+    // Clamp
+    baseX = Math.max(2, Math.min(98, baseX));
+    baseY = Math.max(3, Math.min(97, baseY));
+
+    if (!isTeamA) {
+      const mirrored = mirrorPosition(baseX, baseY);
+      baseX = mirrored.x;
+      baseY = mirrored.y;
+    }
+
+    // Determine if player has ball (closest player on possessing team to ball)
+    const hasBall = false;
+
+    positions.push({
+      playerId,
+      baseX,
+      baseY,
+      currentX: baseX,
+      currentY: baseY,
+      hasBall,
+    });
+  }
+
+  return positions;
+}
+
+// ─── Live Substitution ──────────────────────────────────────────────
 export function applyLiveSubstitution(
   teamA: Team,
   teamB: Team,
@@ -836,14 +1496,12 @@ export function applyLiveSubstitution(
   existingFrames: MatchState[],
   seed: number
 ): MatchState[] {
-  // Update the lineup for the team making the substitution
-  const lineup = team === 'A' ? { ...currentLineupA } : { ...currentLineupB};
+  const lineup = team === 'A' ? { ...currentLineupA } : { ...currentLineupB };
   const updatedStarting11 = [...lineup.starting11];
   const idx = updatedStarting11.indexOf(playerOutId);
 
-  if (idx === -1) return existingFrames; // Player not on pitch
+  if (idx === -1) return existingFrames;
 
-  // Move player out to subs, player in to starting
   updatedStarting11[idx] = playerInId;
   const updatedSubs = [...lineup.subs];
   const subIdx = updatedSubs.indexOf(playerInId);
@@ -851,7 +1509,6 @@ export function applyLiveSubstitution(
     updatedSubs[subIdx] = playerOutId;
   }
 
-  // Add the substitution as executed
   const sub = {
     id: `live_sub_${Date.now()}`,
     playerOutId,
@@ -867,13 +1524,9 @@ export function applyLiveSubstitution(
     ? { ...currentLineupB, starting11: updatedStarting11, subs: updatedSubs, substitutions: [...currentLineupB.substitutions, sub] }
     : currentLineupB;
 
-  // Re-simulate from current minute onwards
   const newFrames = generateAnimationFrames(teamA, teamB, newLineupA, newLineupB, seed);
-
-  // Keep existing frames up to current minute, replace from current minute onwards
   const combined = [...existingFrames.slice(0, currentMinute), ...newFrames.slice(currentMinute)];
 
-  // Add substitution event to the current minute frame
   if (combined[currentMinute]) {
     const subEvent: MatchEvent = {
       minute: currentMinute,

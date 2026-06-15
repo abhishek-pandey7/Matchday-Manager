@@ -32,6 +32,13 @@ export default function PitchCanvas() {
   // Ball trail history
   const ballTrailRef = useRef<{ x: number; y: number; age: number }[]>([]);
 
+  // Player micro-movement state for idle animation
+  const playerMicroMovementsRef = useRef<Map<string, {
+    offsetX: number; offsetY: number;
+    targetOffsetX: number; targetOffsetY: number;
+    timer: number;
+  }>>(new Map());
+
   // Subscribe to store changes and sync to refs
   useEffect(() => {
     const unsub = useCoachStore.subscribe((state) => {
@@ -60,7 +67,7 @@ export default function PitchCanvas() {
     return unsub;
   }, []);
 
-  // Easing function
+  // Easing functions
   const easeInOut = (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
   const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -124,7 +131,6 @@ export default function PitchCanvas() {
     // Left goal
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(pad - goalW, h / 2 - goalH / 2, goalW, goalH);
-    // Net pattern
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 0.5;
     for (let ny = h / 2 - goalH / 2; ny < h / 2 + goalH / 2; ny += 6) {
@@ -197,7 +203,7 @@ export default function PitchCanvas() {
     ctx.stroke();
   }, []);
 
-  // Main animation loop - reads from refs, never triggers re-renders
+  // Main animation loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -240,7 +246,7 @@ export default function PitchCanvas() {
       if (frameIdx !== prevFrameIdxRef.current) {
         const prevFrame = frames[prevFrameIdxRef.current];
 
-        // Check for goal events to trigger celebration
+        // Check for goal events
         const frameEvents = frame.events || [];
         for (const evt of frameEvents) {
           if (evt.type === 'goal') {
@@ -250,7 +256,7 @@ export default function PitchCanvas() {
         }
 
         if (prevFrame && frameIdx > prevFrameIdxRef.current && frameIdx - prevFrameIdxRef.current <= 2) {
-          // Normal forward transition - set up smooth interpolation
+          // Normal forward transition
           ballTransitionRef.current = {
             startX: prevFrame.ballX,
             startY: prevFrame.ballY,
@@ -285,7 +291,7 @@ export default function PitchCanvas() {
           }
           playerTransitionsRef.current = newPlayerTransitions;
         } else {
-          // Jump transition (seeking) - instant
+          // Jump transition - instant
           ballTransitionRef.current = {
             startX: frame.ballX,
             startY: frame.ballY,
@@ -302,7 +308,7 @@ export default function PitchCanvas() {
       // Update transition progress
       const transitionDuration = isAnimatingRef.current
         ? Math.max(60, 500 / speed)
-        : 120; // ms
+        : 120;
       const tr = ballTransitionRef.current;
       if (tr.progress < 1) {
         tr.progress = Math.min(1, tr.progress + (delta / transitionDuration));
@@ -323,9 +329,24 @@ export default function PitchCanvas() {
       ballTrailRef.current.push({ x: ballScreenX, y: ballScreenY, age: 0 });
       ballTrailRef.current = ballTrailRef.current
         .map(p => ({ ...p, age: p.age + delta }))
-        .filter(p => p.age < 500); // Keep last 500ms of trail
+        .filter(p => p.age < 500);
 
-      // Draw players
+      // Update micro-movements for idle animation
+      const microMovements = playerMicroMovementsRef.current;
+      for (const [playerId, mm] of microMovements) {
+        mm.timer -= delta;
+        if (mm.timer <= 0) {
+          // Pick new target offset
+          mm.targetOffsetX = (Math.random() - 0.5) * 4;
+          mm.targetOffsetY = (Math.random() - 0.5) * 4;
+          mm.timer = 1000 + Math.random() * 2000;
+        }
+        // Smooth interpolation toward target
+        mm.offsetX += (mm.targetOffsetX - mm.offsetX) * 0.02;
+        mm.offsetY += (mm.targetOffsetY - mm.offsetY) * 0.02;
+      }
+
+      // Draw players with enhanced movement
       const drawTeam = (
         positions: PlayerPosition[],
         color: string,
@@ -334,6 +355,16 @@ export default function PitchCanvas() {
         isLeft: boolean,
       ) => {
         for (const pos of positions) {
+          // Ensure micro-movement exists for this player
+          if (!microMovements.has(pos.playerId)) {
+            microMovements.set(pos.playerId, {
+              offsetX: 0, offsetY: 0,
+              targetOffsetX: (Math.random() - 0.5) * 4,
+              targetOffsetY: (Math.random() - 0.5) * 4,
+              timer: Math.random() * 2000,
+            });
+          }
+
           let px: number, py: number;
           const pTr = playerTransitionsRef.current.get(pos.playerId);
           if (pTr && tr.progress < 1) {
@@ -344,6 +375,11 @@ export default function PitchCanvas() {
             py = scaleY(pos.currentY);
           }
 
+          // Apply micro-movement offset
+          const mm = microMovements.get(pos.playerId)!;
+          px += mm.offsetX;
+          py += mm.offsetY;
+
           const player = team.players.find(p => p.id === pos.playerId);
           const radius = 13;
 
@@ -353,20 +389,27 @@ export default function PitchCanvas() {
           ctx.fillStyle = 'rgba(0,0,0,0.2)';
           ctx.fill();
 
-          // Player circle
+          // Player circle with gradient
           ctx.beginPath();
           ctx.arc(px, py, radius, 0, Math.PI * 2);
-
-          // Add gradient to player circle
           const playerGrad = ctx.createRadialGradient(px - 3, py - 3, 0, px, py, radius);
           playerGrad.addColorStop(0, lightenColor(color, 20));
           playerGrad.addColorStop(1, color);
           ctx.fillStyle = playerGrad;
           ctx.fill();
 
-          // Border
-          ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-          ctx.lineWidth = 1.5;
+          // Border - position-based color
+          const playerPos = player?.position;
+          let borderColor = 'rgba(0,0,0,0.4)';
+          if (playerPos) {
+            if (['GK'].includes(playerPos)) borderColor = 'rgba(234,179,8,0.8)';
+            else if (['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(playerPos)) borderColor = 'rgba(59,130,246,0.8)';
+            else if (['CDM', 'CM', 'CAM', 'LM', 'RM'].includes(playerPos)) borderColor = 'rgba(34,197,94,0.8)';
+            else borderColor = 'rgba(239,68,68,0.8)';
+          }
+
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 2;
           ctx.stroke();
 
           // Has ball indicator
@@ -378,15 +421,33 @@ export default function PitchCanvas() {
             ctx.stroke();
           }
 
+          // Proximity to ball indicator - players close to ball get a subtle glow
+          const distToBall = Math.sqrt(Math.pow(px - ballScreenX, 2) + Math.pow(py - ballScreenY, 2));
+          if (distToBall < 60) {
+            const glowAlpha = (1 - distToBall / 60) * 0.3;
+            ctx.beginPath();
+            ctx.arc(px, py, radius + 5, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,255,255,${glowAlpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
           // Name label
           const shortLabel = player
-            ? player.name.split(' ').pop()?.substring(0, 4) || '?'
+            ? player.name.split(' ').pop()?.substring(0, 5) || '?'
             : '?';
           ctx.fillStyle = textColor;
           ctx.font = 'bold 7px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(shortLabel, px, py);
+          ctx.fillText(shortLabel, px, py - 1);
+
+          // Rating below name
+          if (player) {
+            ctx.font = '6px sans-serif';
+            ctx.fillStyle = textColor + 'bb';
+            ctx.fillText(String(player.rating), px, py + 5);
+          }
         }
       };
 
@@ -434,7 +495,7 @@ export default function PitchCanvas() {
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Ball pentagon pattern (subtle)
+      // Ball pentagon pattern
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
       for (let a = 0; a < 5; a++) {
         const angle = (a * Math.PI * 2) / 5 - Math.PI / 2;
@@ -448,39 +509,33 @@ export default function PitchCanvas() {
       // Goal celebration effect
       const gf = goalFlashRef.current;
       if (gf.active) {
-        gf.alpha -= delta / 1500; // Fade over 1.5 seconds
+        gf.alpha -= delta / 1500;
         if (gf.alpha <= 0) {
           gf.active = false;
           gf.alpha = 0;
         } else {
-          // Full-screen flash
           const flashColor = gf.teamIdx === 0
             ? `rgba(34, 197, 94, ${gf.alpha * 0.15})`
             : `rgba(239, 68, 68, ${gf.alpha * 0.15})`;
           ctx.fillStyle = flashColor;
           ctx.fillRect(0, 0, w, h);
 
-          // "GOAL!" text with fade
           const textAlpha = Math.min(1, gf.alpha * 2);
           ctx.save();
           ctx.font = `bold ${Math.min(36, w * 0.06)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
 
-          // Text shadow
           ctx.fillStyle = `rgba(0,0,0,${textAlpha * 0.5})`;
           ctx.fillText('GOAL!', w / 2 + 2, h / 2 - 10 + 2);
 
-          // Text outline
           ctx.strokeStyle = `rgba(0,0,0,${textAlpha * 0.8})`;
           ctx.lineWidth = 4;
           ctx.strokeText('GOAL!', w / 2, h / 2 - 10);
 
-          // Text fill
           ctx.fillStyle = `rgba(255, 215, 0, ${textAlpha})`;
           ctx.fillText('GOAL!', w / 2, h / 2 - 10);
 
-          // Football emoji
           ctx.font = `${Math.min(24, w * 0.04)}px sans-serif`;
           ctx.fillText('⚽', w / 2, h / 2 + 15);
           ctx.restore();
@@ -506,6 +561,24 @@ export default function PitchCanvas() {
         w / 2,
         17
       );
+
+      // Possession indicator bar at bottom
+      const possBarY = h - 8;
+      const possBarH = 4;
+      const possBarW = w - pad * 2;
+      const possA = frame.possession[0] / 100;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      roundRect(ctx, pad, possBarY, possBarW, possBarH, 2);
+      ctx.fill();
+
+      ctx.fillStyle = teamA.color;
+      roundRect(ctx, pad, possBarY, possBarW * possA, possBarH, 2);
+      ctx.fill();
+
+      ctx.fillStyle = teamB.color;
+      roundRect(ctx, pad + possBarW * possA, possBarY, possBarW * (1 - possA), possBarH, 2);
+      ctx.fill();
 
       animFrameRef.current = requestAnimationFrame(animate);
     };
