@@ -18,7 +18,7 @@ export default function Home() {
               ⚽
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight">If I Were the Coach</h1>
+              <h1 className="font-bold text-lg leading-tight">Matchday Manager</h1>
               <p className="text-[10px] text-muted-foreground leading-tight">FIFA World Cup 2026 | Substitution Simulator & Match Predictor</p>
             </div>
           </div>
@@ -74,7 +74,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-        If I Were the Coach — FIFA World Cup 2026 | AI-Powered Match Simulator
+        Matchday Manager — FIFA World Cup 2026 | AI-Powered Match Simulator
       </footer>
     </div>
   );
