@@ -426,7 +426,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         currentFrame: 0,
         eventLog: result.events,
         filteredEvents: result.events.filter(e =>
-          ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off', 'penalty_shootout_start', 'penalty_shootout_kick', 'penalty_shootout_finish'].includes(e.type)
+          ['goal', 'shot_on_target', 'corner', 'yellow_card', 'red_card', 'substitution', 'half_time', 'full_time', 'kick_off', 'injury', 'penalty_shootout_start', 'penalty_shootout_kick', 'penalty_shootout_finish', 'free_kick', 'penalty_awarded', 'var_review', 'var_overturned', 'momentum_surge', 'desperation_attack'].includes(e.type)
         ),
         prediction,
         isAnimating: false,

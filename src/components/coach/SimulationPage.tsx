@@ -5,6 +5,7 @@ import { useCoachStore } from '@/store/matchStore';
 import { useTournamentStore } from '@/store/tournamentStore';
 import { TEAMS } from '@/lib/simulation/data';
 import { MatchEventType, MatchEvent } from '@/lib/simulation/types';
+import { WEATHER_MODIFIERS } from '@/lib/simulation/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,15 @@ const EVENT_ICONS: Record<MatchEventType, string> = {
   half_time: '⏸️',
   full_time: '🏁',
   kick_off: '🏟️',
+  penalty_shootout_start: '⚪',
+  penalty_shootout_kick: '🥅',
+  penalty_shootout_finish: '🏆',
+  free_kick: '🎯',
+  penalty_awarded: '⚪',
+  var_review: '📺',
+  var_overturned: '❌',
+  momentum_surge: '⚡',
+  desperation_attack: '🔥',
 };
 
 const EVENT_COLORS: Record<MatchEventType, string> = {
@@ -60,10 +70,19 @@ const EVENT_COLORS: Record<MatchEventType, string> = {
   offside: 'border-l-4 border-purple-400 bg-purple-400/10',
   pass_sequence: 'border-l-4 border-primary/60 bg-primary/5',
   substitution: 'border-l-4 border-sky-400 bg-sky-400/10',
-  injury: 'border-l-4 border-rose-400 bg-rose-400/10',
+  injury: 'border-l-4 border-rose-500 bg-rose-500/15',
   half_time: 'border-l-4 border-border bg-muted/40',
   full_time: 'border-l-4 border-primary bg-primary/10',
   kick_off: 'border-l-4 border-border bg-muted/20',
+  penalty_shootout_start: 'border-l-4 border-primary bg-primary/10',
+  penalty_shootout_kick: 'border-l-4 border-primary/60 bg-primary/5',
+  penalty_shootout_finish: 'border-l-4 border-yellow-400 bg-yellow-400/10',
+  free_kick: 'border-l-4 border-emerald-400 bg-emerald-400/10',
+  penalty_awarded: 'border-l-4 border-white bg-white/10',
+  var_review: 'border-l-4 border-cyan-400 bg-cyan-400/10',
+  var_overturned: 'border-l-4 border-red-500 bg-red-500/10',
+  momentum_surge: 'border-l-4 border-yellow-300 bg-yellow-300/10',
+  desperation_attack: 'border-l-4 border-orange-500 bg-orange-500/15',
 };
 
 function getTeamName(teamId: string, teamAId: string, teamBId: string): string {
@@ -207,6 +226,19 @@ export default function SimulationPage() {
           MATCH<br />
           <span style={{ color: 'var(--primary)' }}>DAY</span>
         </h2>
+        {/* Weather Banner */}
+        {frame.weather && frame.weather !== 'clear' && (() => {
+          const wm = WEATHER_MODIFIERS[frame.weather];
+          return (
+            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-border bg-muted/40 text-xs font-bold tracking-widest uppercase mt-1">
+              <span>{wm.icon}</span>
+              <span>{wm.label}</span>
+              <span className="text-muted-foreground font-normal">
+                — Pass Acc {Math.round(wm.passAccMod * 100)}% · Goals {Math.round(wm.goalRateMod * 100)}%
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Scoreboard */}
@@ -222,7 +254,15 @@ export default function SimulationPage() {
                 {teamA.shortName}
               </div>
               <div className="text-right">
-                <div className="font-bold text-sm md:text-base">{teamA.name}</div>
+                <div className="font-bold text-sm md:text-base flex items-center gap-1">
+                  {teamA.name}
+                  {/* 10-man indicator for Team A */}
+                  {(frame.redCards?.[0] ?? 0) > 0 && (
+                    <span className="text-xs text-red-500 font-bold" title="Red card — playing with fewer men">
+                      🟥×{frame.redCards[0]}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {
                     frame.currentPhase === 'first_half' ? '1st Half' :
@@ -251,7 +291,15 @@ export default function SimulationPage() {
 
             <div className="flex items-center gap-3">
               <div className="text-left">
-                <div className="font-bold text-sm md:text-base">{teamB.name}</div>
+                <div className="font-bold text-sm md:text-base flex items-center gap-1">
+                  {/* 10-man indicator for Team B */}
+                  {(frame.redCards?.[1] ?? 0) > 0 && (
+                    <span className="text-xs text-red-500 font-bold" title="Red card — playing with fewer men">
+                      🟥×{frame.redCards[1]}
+                    </span>
+                  )}
+                  {teamB.name}
+                </div>
                 <div className="text-xs text-muted-foreground">{frame.minute}&apos;</div>
               </div>
               <div

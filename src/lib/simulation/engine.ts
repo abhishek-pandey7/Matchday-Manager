@@ -8,6 +8,8 @@ import {
   FormationType,
   Player,
   Position,
+  WeatherCondition,
+  WEATHER_MODIFIERS,
 } from './types';
 import { FORMATIONS, mirrorPosition } from './formations';
 
@@ -648,6 +650,15 @@ function buildMatchupDescription(
   return baseAction;
 }
 
+// ─── Weather Generation ─────────────────────────────────────────────
+function randomWeather(rng: SeededRandom): WeatherCondition {
+  const roll = rng.next();
+  if (roll < 0.55) return 'clear';        // 55% clear
+  if (roll < 0.78) return 'rain';         // 23% rain
+  if (roll < 0.92) return 'heavy_rain';   // 14% heavy rain
+  return 'snow';                          // 8% snow
+}
+
 // ─── Main Simulation ────────────────────────────────────────────────
 export function simulateMatch(
   teamA: Team,
@@ -655,11 +666,27 @@ export function simulateMatch(
   lineupA: Lineup,
   lineupB: Lineup,
   seed: number = Date.now(),
-  isKnockout: boolean = false
+  isKnockout: boolean = false,
+  homeTeamId?: string // undefined = neutral venue
 ): MatchState {
   const rng = new SeededRandom(seed);
   const fatigue = new Map<string, number>();
   const events: MatchEvent[] = [];
+
+  // ─── Generate Random Weather ──────────────────────────────────────
+  const weather = randomWeather(rng);
+  const weatherMods = WEATHER_MODIFIERS[weather];
+
+  // ─── Injury & Red Card Tracking ───────────────────────────────────
+  const injuredPlayerIds: string[] = [];
+  const redCardedPlayerIds: string[] = [];
+  const redCardedA = new Set<string>();
+  const redCardedB = new Set<string>();
+
+  // ─── Momentum tracking ────────────────────────────────────────────
+  let momentumA = 0; // 0–10
+  let momentumB = 0;
+  let lastPossTeamIdx = -1; // which team had possession last minute
 
   let currentLineupA = { ...lineupA, starting11: [...lineupA.starting11], substitutions: [...lineupA.substitutions] };
   let currentLineupB = { ...lineupB, starting11: [...lineupB.starting11], substitutions: [...lineupB.substitutions] };
@@ -677,15 +704,23 @@ export function simulateMatch(
   // Calculate matchups
   const matchupAnalysis = calculateMatchups(teamA, teamB, currentLineupA, currentLineupB, fatigue);
 
-  // Goal expectancy with enhanced rating dominance
+  // ─── Crowd Advantage ──────────────────────────────────────────────
+  // Determine home-side boost: real home team OR coached team at neutral WC venue
+  const isTeamAHome = homeTeamId ? homeTeamId === teamA.id : true;
+  const isTeamBHome = homeTeamId ? homeTeamId === teamB.id : false;
+  // At neutral WC venues neither has home advantage (both get crowd noise)
+  const crowdBoostA = isTeamAHome ? 0.12 : (isTeamBHome ? -0.05 : 0.03);
+  const crowdBoostB = isTeamBHome ? 0.12 : (isTeamAHome ? -0.05 : 0.03);
+
+  // Goal expectancy with weather modifier
   const expA = calculateGoalExpectancy(
     strengthA.attack, strengthB.defense, strengthA.midfield - strengthB.midfield,
-    lineupA.tactics, lineupA.formation, true, overallRatingDiff
-  );
+    lineupA.tactics, lineupA.formation, crowdBoostA > 0, overallRatingDiff
+  ) * weatherMods.goalRateMod;
   const expB = calculateGoalExpectancy(
     strengthB.attack, strengthA.defense, strengthB.midfield - strengthA.midfield,
-    lineupB.tactics, lineupB.formation, false, -overallRatingDiff
-  );
+    lineupB.tactics, lineupB.formation, crowdBoostB > 0, -overallRatingDiff
+  ) * weatherMods.goalRateMod;
 
   const goalsA = poissonRandom(expA, rng);
   const goalsB = poissonRandom(expB, rng);
@@ -744,15 +779,79 @@ export function simulateMatch(
   let currentPhase: MatchState['currentPhase'] = 'first_half';
 
   for (let minute = 1; minute <= matchLength; minute++) {
-    // Fatigue increases - more for high-tempo teams
-    const tempoFactorA = 1 + (lineupA.tactics.tempo - 50) / 500;
-    const tempoFactorB = 1 + (lineupB.tactics.tempo - 50) / 500;
+    // Fatigue increases - more for high-tempo teams, amplified by weather
+    const tempoFactorA = (1 + (lineupA.tactics.tempo - 50) / 500) * weatherMods.fatigueMod;
+    const tempoFactorB = (1 + (lineupB.tactics.tempo - 50) / 500) * weatherMods.fatigueMod;
 
     for (const pid of currentLineupA.starting11) {
-      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorA);
+      if (pid) fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorA);
     }
     for (const pid of currentLineupB.starting11) {
-      fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorB);
+      if (pid) fatigue.set(pid, (fatigue.get(pid) || 0) + rng.range(0.3, 0.6) * tempoFactorB);
+    }
+
+    // ─── Apply Red Card Lineup Cleanup ───────────────────────────────
+    // Remove any red-carded players from active starting11 each minute
+    for (const rcId of redCardedA) {
+      const idx = currentLineupA.starting11.indexOf(rcId);
+      if (idx !== -1) currentLineupA.starting11[idx] = '';
+    }
+    for (const rcId of redCardedB) {
+      const idx = currentLineupB.starting11.indexOf(rcId);
+      if (idx !== -1) currentLineupB.starting11[idx] = '';
+    }
+
+    // ─── Injury System ──────────────────────────────────────────────
+    // Each outfield player has a small chance of injury per minute (higher when fatigued)
+    if (minute > 20) { // injuries can't happen in the first 20 minutes
+      const checkInjury = (lineup: Lineup, team: Team, teamRedCarded: Set<string>, isA: boolean) => {
+        const activePlayers = lineup.starting11.filter(id => id && !teamRedCarded.has(id) && !injuredPlayerIds.includes(id));
+        for (const pid of activePlayers) {
+          const player = team.players.find(p => p.id === pid);
+          if (!player || player.position === 'GK') continue; // GK rarely injured
+          const fatigueFactor = Math.min(2.0, 1 + (fatigue.get(pid) || 0) * 0.008);
+          const injuryChance = 0.003 * fatigueFactor; // ~0.3% per minute at full fitness
+          if (rng.chance(injuryChance)) {
+            injuredPlayerIds.push(pid);
+            const idx = lineup.starting11.indexOf(pid);
+            // Find a healthy sub
+            const availableSubs = lineup.subs.filter(s => s && !injuredPlayerIds.includes(s));
+            const subPlayer = availableSubs.length > 0 ? availableSubs[0] : null;
+            if (subPlayer && idx !== -1) {
+              lineup.starting11[idx] = subPlayer;
+              const subIdx = lineup.subs.indexOf(subPlayer);
+              if (subIdx !== -1) lineup.subs.splice(subIdx, 1);
+              lineup.subs.push(pid);
+              fatigue.set(subPlayer, 0);
+              const playerIn = team.players.find(p => p.id === subPlayer);
+              events.push({
+                minute,
+                type: 'injury',
+                teamId: team.id,
+                playerId: pid,
+                secondaryPlayerId: subPlayer,
+                description: `🩹 INJURY! ${player.name} cannot continue! ${playerIn?.name || 'Substitute'} comes on.`,
+                x: rng.range(20, 80),
+                y: rng.range(20, 80),
+              });
+            } else {
+              // No sub available — team plays short-handed
+              if (idx !== -1) lineup.starting11[idx] = '';
+              events.push({
+                minute,
+                type: 'injury',
+                teamId: team.id,
+                playerId: pid,
+                description: `🩹 INJURY! ${player.name} is stretchered off! ${isA ? teamA.name : teamB.name} have used all substitutes — they play on short-handed!`,
+                x: rng.range(20, 80),
+                y: rng.range(20, 80),
+              });
+            }
+          }
+        }
+      };
+      checkInjury(currentLineupA, teamA, redCardedA, true);
+      checkInjury(currentLineupB, teamB, redCardedB, false);
     }
 
     // Execute substitutions
@@ -773,6 +872,13 @@ export function simulateMatch(
     const currentStrengthB = calculateTeamStrength(teamB, currentLineupB, fatigue);
     const currentOverallDiff = currentStrengthA.overall - currentStrengthB.overall;
 
+    // ─── Late-Game Desperation ────────────────────────────────────────
+    const isLateGame = minute >= 80 && minute <= 90;
+    const isETLateGame = minute >= 110 && minute <= 120;
+    const scoreDiffForA = score[0] - score[1];
+    const desperationA = (isLateGame || isETLateGame) && scoreDiffForA < 0 && scoreDiffForA >= -2;
+    const desperationB = (isLateGame || isETLateGame) && scoreDiffForA > 0 && scoreDiffForA <= 2;
+
     // ─── Enhanced Possession Determination ────────────────────────
     // Stronger team gets significantly more possession
     const currentPossStrength = Math.min(0.75, Math.max(0.25,
@@ -786,6 +892,47 @@ export function simulateMatch(
     const opponentTeam = isTeamA ? teamB : teamA;
     const teamIdx = isTeamA ? 0 : 1;
 
+    // ─── Momentum Update ─────────────────────────────────────────────
+    if (lastPossTeamIdx === teamIdx) {
+      if (teamIdx === 0) momentumA = Math.min(10, momentumA + 1);
+      else momentumB = Math.min(10, momentumB + 1);
+    } else {
+      if (teamIdx === 0) { momentumA = Math.min(3, momentumA + 1); momentumB = Math.max(0, momentumB - 2); }
+      else { momentumB = Math.min(3, momentumB + 1); momentumA = Math.max(0, momentumA - 2); }
+    }
+    lastPossTeamIdx = teamIdx;
+    const currentMomentum = isTeamA ? momentumA : momentumB;
+    const momentumGoalBoost = 1 + currentMomentum * 0.02; // max +20% at momentum=10
+    const desperationExpBoost = (isTeamA && desperationA) || (!isTeamA && desperationB) ? 1.35 : 1.0;
+
+    // Momentum surge event
+    if (currentMomentum >= 7 && rng.chance(0.12)) {
+      const pressPlayer = selectPlayerForAction(currentLineup, currentTeam, 'center', 'midfield', rng, fatigue);
+      events.push({
+        minute,
+        type: 'momentum_surge',
+        teamId: currentTeam.id,
+        playerId: pressPlayer?.id,
+        description: currentMomentum >= 9
+          ? `${currentTeam.name} are relentless! Wave after wave of attacks — the stadium is rocking!`
+          : `${currentTeam.name} building momentum — ${pressPlayer?.name || 'the team'} drives forward!`,
+        x: isTeamA ? rng.range(60, 80) : rng.range(20, 40),
+        y: rng.range(30, 70),
+      });
+    }
+
+    // Desperation attack event
+    if (((desperationA && isTeamA) || (desperationB && !isTeamA)) && rng.chance(0.10)) {
+      events.push({
+        minute,
+        type: 'desperation_attack',
+        teamId: currentTeam.id,
+        description: `${currentTeam.name} throwing everyone forward — pushing desperately for the equalizer at ${minute}'!`,
+        x: isTeamA ? rng.range(70, 90) : rng.range(10, 30),
+        y: rng.range(30, 70),
+      });
+    }
+
     ballHolderTeamId = currentTeam.id;
     possessionCount[teamIdx]++;
 
@@ -794,19 +941,21 @@ export function simulateMatch(
     const sideAdvantage = getSideAdvantage(isTeamA, attackSide, currentMatchupAnalysis);
 
     // ─── Enhanced Pass Distribution ───────────────────────────────
-    // Pass accuracy: 65% (weak, mid ~60) to 90% (elite, mid ~90) based on midfield rating
+    // Pass accuracy: apply weather modifier
     const currentMidRating = isTeamA ? currentStrengthA.midfield : currentStrengthB.midfield;
-    const basePassAccuracy = 0.65 + (currentMidRating - 60) / 100 * 0.25; // 65% at mid=60, 90% at mid=90
-    const passAcc = Math.min(0.92, Math.max(0.60, basePassAccuracy));
+    const basePassAccuracy = 0.65 + (currentMidRating - 60) / 100 * 0.25;
+    const passAcc = Math.min(0.92, Math.max(0.60, basePassAccuracy)) * weatherMods.passAccMod;
 
     // Passes per minute scale with team strength
     const currentAttackStrength = isTeamA ? currentStrengthA.attack : currentStrengthB.attack;
     const basePassesThisMinute = rng.int(3, 7);
-    const strengthPassBonus = (currentAttackStrength - 70) / 30; // Stronger attack = more passes
+    const strengthPassBonus = (currentAttackStrength - 70) / 30;
     const passesThisMinute = Math.max(2, Math.round(basePassesThisMinute + strengthPassBonus * 3));
 
     // Check if this is a goal minute
     const isGoalMinute = isTeamA ? goalMinutesA.includes(minute) : goalMinutesB.includes(minute);
+
+
 
     if (isGoalMinute) {
       score[teamIdx]++;
@@ -883,6 +1032,39 @@ export function simulateMatch(
         x: goalX,
         y: goalY,
       });
+
+      // ─── VAR Review (12% of goals trigger a review) ──────────────────────
+      if (rng.chance(0.12)) {
+        events.push({
+          minute: minute + 0.3,
+          type: 'var_review',
+          teamId: '',
+          description: `📺 VAR is checking the goal by ${scorer?.name || 'Unknown'}... Reviewing for offside/handball.`,
+          x: 50,
+          y: 50,
+        });
+        // 25% of reviews result in an overturn
+        if (rng.chance(0.25)) {
+          score[teamIdx]--;
+          events.push({
+            minute: minute + 0.6,
+            type: 'var_overturned',
+            teamId: '',
+            description: `❌ GOAL DISALLOWED! VAR overturns the decision — ${scorer?.name || 'Unknown'}\'s goal is ruled out! ${score[0]} - ${score[1]}`,
+            x: 50,
+            y: 50,
+          });
+        } else {
+          events.push({
+            minute: minute + 0.6,
+            type: 'var_review',
+            teamId: currentTeam.id,
+            description: `✅ VAR confirms the goal! It stands! ${score[0]} - ${score[1]}`,
+            x: 50,
+            y: 50,
+          });
+        }
+      }
     } else {
       // ─── Regular play events ──────────────────────────────────────
 
@@ -1111,18 +1293,169 @@ export function simulateMatch(
           });
         }
 
-        // Very rare red card
+        // Very rare red card — and track the player for lineup removal
         if (rng.chance(0.008)) {
           redCards[opponentTeamIdx]++;
+          const redCardedPlayer = fouler;
+          if (redCardedPlayer) {
+            redCardedPlayerIds.push(redCardedPlayer.id);
+            if (opponentTeamIdx === 0) redCardedA.add(redCardedPlayer.id);
+            else redCardedB.add(redCardedPlayer.id);
+          }
           events.push({
             minute: minute + 0.02,
             type: 'red_card',
             teamId: opponentTeamId,
             playerId: fouler?.id,
-            description: `Red card! ${fouler?.name || 'Unknown'} is sent off! ${opponentTeamId === teamA.id ? teamA.name : teamB.name} down to 10 men!`,
+            description: `🟥 Red card! ${fouler?.name || 'Unknown'} is sent off! ${opponentTeamId === teamA.id ? teamA.name : teamB.name} reduced to ${10 - (opponentTeamIdx === 0 ? redCardedA.size - 1 : redCardedB.size - 1)} men!`,
             x: foulX,
             y: foulY,
           });
+          // VAR review of red card (15% chance)
+          if (rng.chance(0.15)) {
+            events.push({
+              minute: minute + 0.5,
+              type: 'var_review',
+              teamId: '',
+              description: `📺 VAR reviewing the red card shown to ${fouler?.name || 'Unknown'}...`,
+              x: 50,
+              y: 50,
+            });
+            // 30% chance downgraded to yellow
+            if (rng.chance(0.30)) {
+              redCards[opponentTeamIdx]--;
+              yellowCards[opponentTeamIdx]++;
+              if (redCardedPlayer) {
+                if (opponentTeamIdx === 0) redCardedA.delete(redCardedPlayer.id);
+                else redCardedB.delete(redCardedPlayer.id);
+                const ri = redCardedPlayerIds.indexOf(redCardedPlayer.id);
+                if (ri !== -1) redCardedPlayerIds.splice(ri, 1);
+              }
+              events.push({
+                minute: minute + 0.8,
+                type: 'var_overturned',
+                teamId: opponentTeamId,
+                playerId: fouler?.id,
+                description: `ℹ️ VAR reduces the red card to a yellow for ${fouler?.name || 'Unknown'}! They can stay on!`,
+                x: foulX,
+                y: foulY,
+              });
+            }
+          }
+        }
+
+        // ─── Set Pieces ──────────────────────────────────────────────
+        // Determine if foul was in dangerous area or in the box
+        const isInBox = foulX > (isTeamA ? 83 : 0) && foulX < (isTeamA ? 100 : 17);
+        const isInDangerousArea = !isInBox && foulX > (isTeamA ? 60 : 0) && foulX < (isTeamA ? 100 : 40);
+
+        if (isInBox && rng.chance(0.5)) {
+          // In-play PENALTY AWARDED
+          const penX = isTeamA ? 89 : 11;
+          const penY = 50;
+          ballX = penX;
+          ballY = penY;
+          const penTaker = selectPlayerForAction(currentLineup, currentTeam, 'center', 'attack', rng, fatigue);
+          const opponentGK = opponentLineup.starting11
+            .map(id => opponentTeam.players.find(p => p.id === id))
+            .find(p => p?.position === 'GK');
+
+          shots[teamIdx]++;
+          events.push({
+            minute: minute + 0.05,
+            type: 'penalty_awarded',
+            teamId: currentTeam.id,
+            playerId: fouled?.id,
+            description: `⚪ PENALTY! Foul in the box by ${fouler?.name || 'Unknown'}! ${currentTeam.name} awarded a penalty kick!`,
+            x: foulX,
+            y: foulY,
+          });
+
+          // Penalty resolution (~75% conversion rate)
+          const shootingAttr = penTaker?.shooting || 70;
+          const gkAttr = opponentGK?.defending || 75;
+          const penScore = rng.chance(0.76 + (shootingAttr - 75) * 0.004 - (gkAttr - 75) * 0.003);
+          if (penScore) {
+            score[teamIdx]++;
+            shotsOnTarget[teamIdx]++;
+            events.push({
+              minute: minute + 0.1,
+              type: 'goal',
+              teamId: currentTeam.id,
+              playerId: penTaker?.id,
+              description: `⚪ PENALTY SCORED! ${penTaker?.name || 'Unknown'} converts from the spot! ${score[0]} - ${score[1]}`,
+              x: penX,
+              y: penY,
+            });
+          } else {
+            shotsOnTarget[teamIdx]++;
+            events.push({
+              minute: minute + 0.1,
+              type: 'shot_on_target',
+              teamId: currentTeam.id,
+              playerId: penTaker?.id,
+              description: `⚪ PENALTY SAVED! ${opponentGK?.name || 'Goalkeeper'} dives to keep it out! Incredible stop!`,
+              x: penX,
+              y: penY,
+            });
+          }
+        } else if (isInDangerousArea && rng.chance(0.30)) {
+          // FREE KICK in dangerous area
+          const fkX = foulX;
+          const fkY = foulY;
+          ballX = fkX;
+          ballY = fkY;
+          const fkTaker = selectPlayerForAction(currentLineup, currentTeam, attackSide, 'midfield', rng, fatigue);
+
+          events.push({
+            minute: minute + 0.05,
+            type: 'free_kick',
+            teamId: currentTeam.id,
+            playerId: fkTaker?.id,
+            description: `🎯 Free kick in a dangerous position for ${currentTeam.name}. ${fkTaker?.name || 'Unknown'} steps up.`,
+            x: fkX,
+            y: fkY,
+          });
+
+          shots[teamIdx]++;
+          // Free kick shot chance based on position (~20-35% on target)
+          const fkDistance = isTeamA ? 100 - fkX : fkX;
+          const onTargetChance = Math.max(0.15, 0.40 - fkDistance * 0.005);
+          if (rng.chance(onTargetChance)) {
+            shotsOnTarget[teamIdx]++;
+            if (rng.chance(0.25)) { // ~25% of on-target FK go in
+              score[teamIdx]++;
+              events.push({
+                minute: minute + 0.1,
+                type: 'goal',
+                teamId: currentTeam.id,
+                playerId: fkTaker?.id,
+                description: `⚽️ GOAL DIRECT FROM A FREE KICK! ${fkTaker?.name || 'Unknown'} curls it into the top corner! ${score[0]} - ${score[1]}`,
+                x: isTeamA ? 95 : 5,
+                y: 50,
+              });
+            } else {
+              events.push({
+                minute: minute + 0.1,
+                type: 'shot_on_target',
+                teamId: currentTeam.id,
+                playerId: fkTaker?.id,
+                description: `Free kick from ${fkTaker?.name || 'Unknown'} — saved!`,
+                x: isTeamA ? 92 : 8,
+                y: fkY,
+              });
+            }
+          } else {
+            events.push({
+              minute: minute + 0.1,
+              type: 'shot_off_target',
+              teamId: currentTeam.id,
+              playerId: fkTaker?.id,
+              description: `Free kick by ${fkTaker?.name || 'Unknown'} goes over the wall but wide.`,
+              x: isTeamA ? 94 : 6,
+              y: fkY,
+            });
+          }
         }
       } else if (eventRoll < 0.36) {
         // Offside
@@ -1446,6 +1779,10 @@ export function simulateMatch(
     currentPhase,
     ballHolderTeamId,
     shootoutScore,
+    weather,
+    momentum: [momentumA, momentumB] as [number, number],
+    injuredPlayerIds,
+    redCardedPlayerIds,
   };
 }
 
@@ -2036,6 +2373,10 @@ export function generateAnimationFrames(
       currentPhase: framePhase,
       ballHolderTeamId: ballPos.teamId,
       shootoutScore: fullMatch.shootoutScore,
+      weather: fullMatch.weather,
+      momentum: fullMatch.momentum,
+      injuredPlayerIds: fullMatch.injuredPlayerIds,
+      redCardedPlayerIds: fullMatch.redCardedPlayerIds,
     });
   }
 
